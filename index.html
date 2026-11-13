@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Menú 4x4">
+    <meta name="theme-color" content="#ea580c">
+    
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+
+    <title>Menú Familiar 4x4 v1.5.0</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+    <style>
+        [x-cloak] { display: none !important; }
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #fffaf0;
+            color: #431407;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .dot-cero { background-color: #0ea5e9; }
+        .dot-baja { background-color: #22c55e; }
+        .dot-media { background-color: #f59e0b; }
+        .dot-alta { background-color: #ef4444; }
+
+        .meal-card { transition: all 0.2s ease; }
+        .meal-card:active { transform: scale(0.98); }
+        
+        .bg-comida { background: #fffbeb; border: 1px solid #fde68a; }
+        .bg-cena { background: #f0fdf4; border: 1px solid #bbf7d0; }
+        
+        .sem-1 { background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); border: 2px solid #fdba74; }
+        .sem-2 { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border: 2px solid #86efac; }
+        .sem-3 { background: linear-gradient(135deg, #fef08a 0%, #fde047 100%); border: 2px solid #facc15; }
+        .sem-4 { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border: 2px solid #f9a8d4; }
+        .postres-sec { background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%); border: 2px solid #fda4af; }
+    </style>
+</head>
+<body x-data="menuApp()" x-init="init()">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado v1.5.0', reg.scope))
+                    .catch(err => console.error('Error SW:', err));
+            });
+        }
+    </script>
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="bg-orange-600 text-white p-5 sticky top-0 z-40 shadow-lg rounded-b-3xl mb-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-black uppercase tracking-tight flex items-center gap-2">
+                    Menú <span class="text-yellow-300">4x4</span>
+                    <span class="text-[10px] bg-orange-800 text-orange-200 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">v1.5.0</span>
+                </h1>
+                <p class="text-xs font-bold text-orange-200 uppercase tracking-widest mt-0.5">Asistente Inteligente • Raciones • Pasillos</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button @click="abrirModalCompra()" class="w-10 h-10 bg-orange-700/80 hover:bg-orange-700 text-yellow-300 rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-transform relative" title="Lista de la Compra">
+                    <span class="material-symbols-outlined text-2xl">shopping_cart</span>
+                    <template x-if="listaCompra.filter(i => !i.comprado).length > 0">
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-orange-600" x-text="listaCompra.filter(i => !i.comprado).length"></span>
+                    </template>
+                </button>
+
+                <button @click="abrirTutorial()" class="w-10 h-10 bg-orange-700/80 hover:bg-orange-700 text-white rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-transform" title="Guía de la app">
+                    <span class="material-symbols-outlined text-2xl">help_outline</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- TEMPORIZADOR FLOTANTE ACTIVO -->
+    <div x-show="timer.activo || timer.terminado" x-transition x-cloak class="fixed bottom-4 right-4 z-50 bg-gray-900 text-white px-5 py-3.5 rounded-3xl shadow-2xl border-2 flex items-center gap-4" :class="timer.terminado ? 'border-red-500 animate-bounce' : 'border-orange-500'">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-orange-400" :class="{'text-red-400': timer.terminado}">timer</span>
+            <div>
+                <p class="text-[10px] font-bold uppercase text-gray-400" x-text="timer.terminado ? '¡Tiempo cumplido!' : 'Temporizador activo'"></p>
+                <p class="text-xl font-black tracking-wider font-mono" x-text="formatearTiempo(timer.segundosRestantes)"></p>
+            </div>
+        </div>
+        <button @click="detenerTimer()" class="bg-red-500/20 hover:bg-red-500/40 text-red-300 p-2 rounded-xl text-xs font-black uppercase">Parar</button>
+    </div>
+
+    <!-- PESTAÑAS PRINCIPALES -->
+    <div class="max-w-6xl mx-auto px-4 mb-4">
+        <div class="bg-orange-950/5 p-1 rounded-2xl flex gap-1 border border-orange-900/10">
+            <button @click="vistaActiva = 'menus'" class="flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all" :class="vistaActiva === 'menus' ? 'bg-orange-600 text-white shadow-md' : 'text-orange-900 hover:bg-white/50'">
+                <span class="material-symbols-outlined text-lg">restaurant_menu</span> Menús Diarios (60)
+            </button>
+            <button @click="vistaActiva = 'nevera'" class="flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all" :class="vistaActiva === 'nevera' ? 'bg-sky-600 text-white shadow-md' : 'text-orange-900 hover:bg-white/50'">
+                <span class="material-symbols-outlined text-lg">kitchen</span> Tengo en Nevera
+            </button>
+            <button @click="vistaActiva = 'postres'" class="flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all" :class="vistaActiva === 'postres' ? 'bg-rose-600 text-white shadow-md' : 'text-orange-900 hover:bg-white/50'">
+                <span class="material-symbols-outlined text-lg">cookie</span> Postres
+            </button>
+        </div>
+    </div>
+
+    <!-- BUSCADOR Y FILTROS (MENÚS Y POSTRES) -->
+    <section x-show="vistaActiva !== 'nevera'" class="max-w-6xl mx-auto px-4 mb-6 space-y-3">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-4 top-3.5 text-gray-400">search</span>
+                <input type="text" x-model="busqueda" placeholder="Buscar plato, ingrediente, corte..." class="w-full bg-white border-2 border-orange-100 rounded-2xl pl-12 pr-4 py-3 text-sm font-bold text-gray-800 outline-none focus:border-orange-400 shadow-sm transition-all">
+                <button x-show="busqueda" @click="busqueda = ''" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined text-lg">cancel</span>
+                </button>
+            </div>
+            
+            <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                <button @click="filtroEstacion = (filtroEstacion === 'invierno' ? '' : 'invierno')" :class="filtroEstacion === 'invierno' ? 'bg-sky-700 text-white' : 'bg-white text-gray-600 border border-gray-200'" class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-sm transition-all">
+                    ❄️ Invierno
+                </button>
+                <button @click="filtroEstacion = (filtroEstacion === 'verano' ? '' : 'verano')" :class="filtroEstacion === 'verano' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-200'" class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-sm transition-all">
+                    ☀️ Verano
+                </button>
+                <button @click="filtroDot = (filtroDot === 'cero' ? '' : 'cero')" :class="filtroDot === 'cero' ? 'bg-sky-500 text-white' : 'bg-white text-gray-600 border border-gray-200'" class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-sm transition-all">
+                    ⚡ Rápido
+                </button>
+                <button @click="filtroDot = (filtroDot === 'alta' ? '' : 'alta')" :class="filtroDot === 'alta' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 border border-gray-200'" class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-sm transition-all">
+                    🍲 Vianda / Guiso
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- VISTA: TENGO EN LA NEVERA (BUSCADOR INVERSO) -->
+    <main x-show="vistaActiva === 'nevera'" class="max-w-6xl mx-auto px-4 pb-24 space-y-6">
+        <div class="bg-sky-50 border-2 border-sky-200 rounded-[2.5rem] p-6 shadow-sm space-y-4">
+            <div>
+                <h2 class="text-xl font-black text-sky-950 flex items-center gap-2 uppercase">
+                    <span class="material-symbols-outlined text-sky-600">kitchen</span> ¿Qué tienes en la nevera?
+                </h2>
+                <p class="text-xs font-bold text-sky-800 mt-1">Escribe ingredientes separados por comas (ej: pollo, pimiento, arroz) y te diremos qué puedes cocinar hoy.</p>
+            </div>
+
+            <div class="relative">
+                <span class="material-symbols-outlined absolute left-4 top-3.5 text-sky-500">inventory_2</span>
+                <input type="text" x-model="ingredientesNevera" placeholder="Ej: atún, tomate, pasta, calabacín..." class="w-full bg-white border-2 border-sky-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-gray-800 outline-none focus:border-sky-500 shadow-sm">
+                <button x-show="ingredientesNevera" @click="ingredientesNevera = ''" class="absolute right-3 top-3.5 text-gray-400">
+                    <span class="material-symbols-outlined">cancel</span>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <span class="text-[11px] font-black text-sky-800 uppercase self-center">Sugerencias:</span>
+                <template x-for="sug in ['pollo', 'ternera', 'salmón', 'atún', 'garbanzos', 'lentejas', 'calabacín', 'patatas', 'arroz', 'huevos']" :key="sug">
+                    <button @click="toggleSugerenciaNevera(sug)" class="text-xs font-bold px-3 py-1 rounded-full border transition-all" :class="ingredientesNevera.toLowerCase().includes(sug) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-100'" x-text="'+ ' + sug"></button>
+                </template>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <template x-for="res in resultadosNevera" :key="res.diaId + '-' + res.tipo">
+                <div @click="abrirDetalleDirecto(res)" class="meal-card bg-white p-5 rounded-3xl shadow-md border-2 cursor-pointer relative" :class="res.porcentaje >= 60 ? 'border-green-400' : 'border-sky-100'">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-black uppercase px-2.5 py-0.5 rounded-full" :class="res.porcentaje >= 60 ? 'bg-green-100 text-green-800' : 'bg-sky-100 text-sky-800'" x-text="res.coincidencias + ' coincidencia(s)'"></span>
+                        <span class="text-xs font-bold text-gray-400" x-text="'Día ' + res.diaId + ' • ' + res.tipo"></span>
+                    </div>
+                    <h3 class="text-base font-black text-gray-800 mb-2" x-text="res.receta.titulo"></h3>
+                    <p class="text-xs text-gray-600 line-clamp-2" x-text="res.receta.ingredientes"></p>
+                </div>
+            </template>
+        </div>
+    </main>
+
+    <!-- VISTA: MENÚS DIARIOS -->
+    <main x-show="vistaActiva === 'menus'" class="max-w-6xl mx-auto px-4 pb-24 space-y-8">
+        <template x-for="(semana, sIndex) in semanasFiltradas" :key="sIndex">
+            <section x-show="semana.dias.length > 0" class="rounded-[2.5rem] p-5 shadow-sm" :class="getSemanaClass(sIndex)">
+                <div class="flex justify-between items-center mb-5">
+                    <h2 class="text-xl font-black text-orange-900 flex items-center gap-2 uppercase">
+                        <span class="material-symbols-outlined">calendar_month</span>
+                        <span x-text="semana.titulo"></span>
+                    </h2>
+                    <button @click="generarCompraSemana(semana)" class="bg-white/80 hover:bg-white text-orange-900 text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm border border-orange-900/10 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">add_shopping_cart</span> + Compra Semana
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <template x-for="dia in semana.dias" :key="dia.id">
+                        <div class="bg-white p-4 rounded-3xl shadow-md border border-orange-900/5">
+                            <span class="block text-lg font-black text-orange-800 border-b-2 border-orange-100 pb-2 mb-3" x-text="'Día ' + dia.id"></span>
+                            
+                            <div class="space-y-3">
+                                <!-- ALMUERZO -->
+                                <div @click="abrirDetalle(dia, 'almuerzo')" class="meal-card bg-comida p-3.5 rounded-2xl cursor-pointer shadow-sm relative group">
+                                    <div class="flex items-center justify-between mb-1.5 pr-6">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 rounded-full shadow-sm flex-shrink-0" :class="'dot-' + dia.almuerzo.dot"></span>
+                                            <span class="text-[10px] font-black text-yellow-700 uppercase tracking-wider">Almuerzo</span>
+                                        </div>
+                                        <span class="text-xs" x-text="dia.almuerzo.estacion === 'invierno' ? '❄️ Invierno' : '☀️ Verano'"></span>
+                                    </div>
+                                    <span class="font-bold text-gray-800 leading-tight block text-sm mb-1" x-text="dia.almuerzo.titulo"></span>
+                                    <div class="border-t border-yellow-200/50 pt-1.5">
+                                        <p class="text-xs text-gray-600 line-clamp-2" x-text="dia.almuerzo.ingredientes"></p>
+                                    </div>
+                                    <span class="material-symbols-outlined absolute top-3 right-3 text-yellow-600 opacity-60 group-hover:opacity-100 text-lg">menu_book</span>
+                                </div>
+
+                                <!-- CENA -->
+                                <div @click="abrirDetalle(dia, 'cena')" class="meal-card bg-cena p-3.5 rounded-2xl cursor-pointer shadow-sm relative group">
+                                    <div class="flex items-center justify-between mb-1.5 pr-6">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 rounded-full shadow-sm flex-shrink-0" :class="'dot-' + dia.cena.dot"></span>
+                                            <span class="text-[10px] font-black text-green-700 uppercase tracking-wider">Cena</span>
+                                        </div>
+                                        <span class="text-xs" x-text="dia.cena.estacion === 'invierno' ? '❄️ Invierno' : '☀️ Verano'"></span>
+                                    </div>
+                                    <span class="font-bold text-gray-800 leading-tight block text-sm mb-1" x-text="dia.cena.titulo"></span>
+                                    <div class="border-t border-green-200/50 pt-1.5">
+                                        <p class="text-xs text-gray-600 line-clamp-2" x-text="dia.cena.ingredientes"></p>
+                                    </div>
+                                    <span class="material-symbols-outlined absolute top-3 right-3 text-green-600 opacity-60 group-hover:opacity-100 text-lg">menu_book</span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </template>
+    </main>
+
+    <!-- VISTA: POSTRES Y MERIENDAS SANAS -->
+    <main x-show="vistaActiva === 'postres'" class="max-w-6xl mx-auto px-4 pb-24">
+        <section class="rounded-[2.5rem] p-6 postres-sec shadow-sm space-y-6">
+            <div class="flex justify-between items-center border-b border-rose-900/10 pb-4">
+                <div>
+                    <h2 class="text-2xl font-black text-rose-950 flex items-center gap-2 uppercase">
+                        <span class="material-symbols-outlined text-rose-700">bakery_dining</span> Postres & Meriendas Sanas
+                    </h2>
+                    <p class="text-xs font-bold text-rose-800 mt-1">Sin Azúcar Refinado • Medidas Exactas para Principiantes</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <template x-for="postre in postresFiltrados" :key="postre.id">
+                    <div @click="abrirDetallePostre(postre)" class="meal-card bg-white p-5 rounded-3xl shadow-md border border-rose-900/10 cursor-pointer relative group">
+                        <div class="flex justify-between items-start mb-2 pr-6">
+                            <span class="text-xs font-black bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full uppercase" x-text="postre.categoria"></span>
+                            <span class="text-xs" x-text="postre.estacion === 'invierno' ? '❄️ Templado' : '☀️ Fresco'"></span>
+                        </div>
+                        <h3 class="text-lg font-black text-gray-800 mb-2" x-text="postre.titulo"></h3>
+                        <p class="text-xs text-gray-600 line-clamp-3 font-semibold" x-text="postre.ingredientes"></p>
+                        <span class="material-symbols-outlined absolute top-4 right-4 text-rose-500 opacity-60 group-hover:opacity-100 text-xl">cookie</span>
+                    </div>
+                </template>
+            </div>
+        </section>
+    </main>
+
+    <!-- PIE DE PÁGINA CON SELLO OFICIAL MEDBASHA -->
+    <footer class="text-center p-8 text-orange-900/60 text-xs font-bold pb-16 space-y-3">
+        <p>© 2026 Menú Familiar 4x4 • 100% Saludable (0% Alcohol • 0% Cerdo)</p>
+        
+        <div class="flex justify-center items-center gap-4 text-xs">
+            <button @click="exportarDatosJSON()" class="hover:underline flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">download</span> Backup Recetas (JSON)
+            </button>
+            <span>•</span>
+            <label class="hover:underline cursor-pointer flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">upload</span> Importar
+                <input type="file" @change="importarDatosJSON($event)" accept=".json" class="hidden">
+            </label>
+        </div>
+
+        <div class="pt-4 flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+            <svg class="w-5 h-5 text-orange-700" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.8L19 8v8l-7 3.5L5 16V8l7-3.2z"/>
+                <text x="12" y="15.5" font-size="8.5" font-weight="bold" text-anchor="middle" fill="currentColor">mb</text>
+            </svg>
+            <span class="font-bold tracking-widest text-orange-950 text-xs lowercase">medbasha</span>
+        </div>
+    </footer>
+
+    <!-- MODAL RECETA INTELIGENTE (ESCALADOR + MODO COCINA + EXPRÉS/TRADICIONAL) -->
+    <div x-show="modalDetalleAbierto" x-transition x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+        <div @click.away="cerrarDetalle()" class="bg-white w-full max-w-2xl rounded-t-[3rem] sm:rounded-[3rem] p-6 shadow-2xl flex flex-col max-h-[92vh]">
+            
+            <!-- CABECERA DEL MODAL -->
+            <div class="flex justify-between items-start mb-3">
+                <div class="pr-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-black text-orange-600 uppercase tracking-widest" x-text="editorData.esPostre ? 'Postre Casero' : 'Día ' + editorData.diaId"></span>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full uppercase bg-orange-100 text-orange-800" x-text="editorData.tipo"></span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-black text-gray-800 leading-snug" x-text="editorData.titulo"></h2>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- BOTÓN MODO COCINA (PANTALLA ENCENDIDA + TEXTO XL) -->
+                    <button @click="toggleModoCocina()" class="px-3 py-2 rounded-2xl text-xs font-black flex items-center gap-1 transition-all border" :class="modoCocinaActivo ? 'bg-green-600 text-white border-green-600 shadow-md' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'" title="Mantener pantalla encendida y letra grande">
+                        <span class="material-symbols-outlined text-base" x-text="modoCocinaActivo ? 'visibility' : 'visibility_off'"></span>
+                        <span class="hidden sm:inline" x-text="modoCocinaActivo ? 'Pantalla Fija ON' : 'Modo Cocina'"></span>
+                    </button>
+                    <button @click="cerrarDetalle()" class="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-200"><span class="material-symbols-outlined">close</span></button>
+                </div>
+            </div>
+
+            <!-- BARRA DE CONTROL: RACIONES Y MODO EXPRÉS/TRADICIONAL -->
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <!-- ESCALADOR DE RACIONES -->
+                <div class="bg-amber-50 p-1.5 rounded-2xl flex items-center justify-between border border-amber-200 sm:w-1/2">
+                    <span class="text-[11px] font-black text-amber-900 uppercase pl-2 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">group</span> Raciones:
+                    </span>
+                    <div class="flex gap-1">
+                        <template x-for="num in [2, 4, 6]" :key="num">
+                            <button @click="raciones = num" class="px-3 py-1 rounded-xl text-xs font-black transition-all" :class="raciones === num ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-900 hover:bg-amber-100'" x-text="num + 'p'"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE MODO DE COCCIÓN -->
+                <template x-if="!editorData.esPostre">
+                    <div class="bg-orange-100/70 p-1.5 rounded-2xl flex gap-1 border border-orange-200 sm:w-1/2">
+                        <button @click="modoCoccion = 'expres'" class="flex-1 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-all" :class="modoCoccion === 'expres' ? 'bg-orange-500 text-white shadow-sm' : 'text-orange-900 hover:bg-white/50'">
+                            <span class="material-symbols-outlined text-sm">bolt</span> Exprés
+                        </button>
+                        <button @click="modoCoccion = 'tradicional'" class="flex-1 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-all" :class="modoCoccion === 'tradicional' ? 'bg-orange-700 text-white shadow-sm' : 'text-orange-900 hover:bg-white/50'">
+                            <span class="material-symbols-outlined text-sm">skillet</span> Tradicional
+                        </button>
+                    </div>
+                </template>
+            </div>
+
+            <!-- CUERPO DE LA RECETA -->
+            <div class="overflow-y-auto hide-scrollbar flex-grow space-y-4 pr-1">
+                
+                <!-- INGREDIENTES ESCALADOS Y DETALLADOS -->
+                <div class="bg-orange-50/70 p-4 rounded-2xl border border-orange-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="text-xs font-black text-orange-800 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">local_grocery_store</span> Ingredientes exactos (<span x-text="raciones"></span> personas)
+                        </h4>
+                        <span x-show="raciones !== 4" class="text-[10px] font-black bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Cantidades ajustadas</span>
+                    </div>
+                    <ul class="space-y-1.5">
+                        <template x-for="(ing, idx) in ingredientesEscaladosLista" :key="idx">
+                            <li class="flex items-start gap-2 font-semibold text-gray-800" :class="modoCocinaActivo ? 'text-base' : 'text-sm'">
+                                <span class="text-orange-500 font-black">•</span>
+                                <span x-text="ing"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+
+                <!-- CONSEJO DE CHEF / PUNTO CLAVE -->
+                <template x-if="editorData.consejo">
+                    <div class="bg-sky-50 border border-sky-200 p-3.5 rounded-2xl flex items-start gap-2.5">
+                        <span class="material-symbols-outlined text-sky-600 text-xl flex-shrink-0 mt-0.5">tips_and_updates</span>
+                        <div>
+                            <p class="text-[11px] font-black text-sky-900 uppercase tracking-wider">Punto Clave para que quede perfecto</p>
+                            <p class="text-xs font-semibold text-sky-950 mt-0.5 leading-relaxed" x-text="editorData.consejo"></p>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- PASOS DE PREPARACIÓN CON TEMPORIZADOR -->
+                <div>
+                    <h4 class="text-xs font-black text-orange-800 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">cooking</span> 
+                        <span x-text="modoCoccion === 'expres' && !editorData.esPostre ? 'Pasos Modo Exprés Rápido' : 'Preparación Paso a Paso'"></span>
+                    </h4>
+                    <div class="space-y-3">
+                        <template x-for="(paso, index) in (modoCoccion === 'expres' && editorData.pasosExpres ? editorData.pasosExpres : editorData.pasos)" :key="index">
+                            <div class="flex flex-col gap-2 bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+                                <div class="flex gap-3 items-start">
+                                    <span class="bg-orange-500 text-white text-xs font-black w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" x-text="index + 1"></span>
+                                    <p class="text-gray-800 font-semibold leading-relaxed" :class="modoCocinaActivo ? 'text-lg' : 'text-sm'" x-text="paso"></p>
+                                </div>
+                                <!-- DETECTOR DE TIEMPO PARA BOTÓN DE TEMPORIZADOR -->
+                                <template x-if="extraerMinutos(paso) > 0">
+                                    <div class="pl-9">
+                                        <button @click="iniciarTimer(extraerMinutos(paso))" class="inline-flex items-center gap-1.5 bg-orange-100 hover:bg-orange-200 text-orange-900 text-xs font-black px-3 py-1.5 rounded-xl transition-colors">
+                                            <span class="material-symbols-outlined text-sm">timer</span>
+                                            Iniciar temporizador (<span x-text="extraerMinutos(paso)"></span> min)
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PIE DEL MODAL -->
+            <div class="mt-4 pt-3 border-t border-gray-100 flex gap-3">
+                <button @click="anadirACompraEscalado()" class="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 font-black px-4 py-3.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-colors">
+                    <span class="material-symbols-outlined text-base">add_shopping_cart</span> Añadir (<span x-text="raciones"></span>p) a Lista de la Compra
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LISTA DE LA COMPRA AGRUPADA POR PASILLOS -->
+    <div x-show="modalCompraAbierto" x-transition x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+        <div @click.away="modalCompraAbierto = false" class="bg-white w-full max-w-lg rounded-t-[3rem] sm:rounded-[3rem] p-6 shadow-2xl flex flex-col max-h-[88vh]">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-xs font-black text-orange-600 uppercase tracking-widest">Organizada por Pasillos</h3>
+                    <h2 class="text-2xl font-black text-gray-800">Lista de la Compra</h2>
+                </div>
+                <button @click="modalCompraAbierto = false" class="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-200"><span class="material-symbols-outlined">close</span></button>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <input type="text" x-model="nuevoItemCompra" @keydown.enter="agregarItemManualCompra()" placeholder="Añadir producto manual..." class="flex-1 bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-orange-400">
+                <button @click="agregarItemManualCompra()" class="bg-orange-500 text-white font-bold px-4 rounded-2xl text-xs uppercase">Añadir</button>
+            </div>
+
+            <div class="overflow-y-auto hide-scrollbar flex-grow space-y-4 pr-1">
+                <template x-if="listaCompra.length === 0">
+                    <p class="text-center text-gray-400 font-semibold py-8 text-sm">Tu lista está vacía.</p>
+                </template>
+
+                <template x-for="(grupo, pasillo) in listaCompraAgrupada" :key="pasillo">
+                    <div x-show="grupo.length > 0" class="space-y-1.5">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-orange-800 bg-orange-100/70 px-3 py-1 rounded-xl inline-block" x-text="pasillo"></h4>
+                        <div class="space-y-1.5">
+                            <template x-for="item in grupo" :key="item.uid">
+                                <div class="flex items-center justify-between p-3 rounded-2xl border transition-all" :class="item.comprado ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-orange-100 shadow-sm'">
+                                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                                        <input type="checkbox" x-model="item.comprado" @change="guardarListaCompraDB()" class="w-5 h-5 accent-orange-600 rounded">
+                                        <span class="text-sm font-bold text-gray-800" :class="{ 'line-through text-gray-400': item.comprado }" x-text="item.nombre"></span>
+                                    </label>
+                                    <button @click="eliminarItemPorUid(item.uid)" class="text-gray-400 hover:text-red-500 p-1">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                <button @click="limpiarListaCompra()" class="text-xs font-bold text-red-500 hover:underline">Vaciar lista</button>
+                <button @click="modalCompraAbierto = false" class="bg-gray-800 text-white font-bold px-6 py-3 rounded-2xl text-xs uppercase">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TUTORIAL / BIENVENIDA -->
+    <div x-show="modalTutorialAbierto" x-transition x-cloak class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-white w-full max-w-lg rounded-[3rem] p-7 shadow-2xl space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-orange-100 text-orange-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                    <span class="material-symbols-outlined text-4xl">auto_awesome</span>
+                </div>
+                <h2 class="text-2xl font-black text-gray-800">Menú 4x4 v1.5.0</h2>
+                <p class="text-xs font-bold text-orange-600 uppercase tracking-widest">Nuevas Funciones Inteligentes</p>
+            </div>
+
+            <div class="space-y-3.5 text-sm text-gray-600 font-semibold leading-relaxed">
+                <div class="flex items-start gap-3">
+                    <span class="bg-sky-100 text-sky-700 font-black p-2 rounded-xl material-symbols-outlined text-lg">kitchen</span>
+                    <p><strong class="text-gray-800">Tengo en Nevera:</strong> Pon los ingredientes que tengas y descubre qué recetas puedes preparar al momento.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="bg-amber-100 text-amber-700 font-black p-2 rounded-xl material-symbols-outlined text-lg">group</span>
+                    <p><strong class="text-gray-800">Raciones y Cortes Exactos:</strong> Ajusta para 2, 4 o 6 personas con gramajes y cortes detallados para no fallar.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="bg-green-100 text-green-700 font-black p-2 rounded-xl material-symbols-outlined text-lg">timer</span>
+                    <p><strong class="text-gray-800">Modo Cocina y Temporizador:</strong> Pantalla siempre encendida, letra grande y cuenta atrás en un toque.</p>
+                </div>
+            </div>
+
+            <button @click="confirmarTutorial()" class="w-full bg-green-500 hover:bg-green-600 text-white font-black uppercase tracking-widest py-4 rounded-2xl shadow-lg shadow-green-500/30 active:scale-95 transition-transform text-sm">
+                ¡Entendido!
+            </button>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE LA APLICACIÓN -->
+    <script>
+        const DB_NAME = 'MenuFamiliar4x4_DB_v150';
+        const DB_VERSION = 1;
+
+        function menuApp() {
+            return {
+                semanas: [],
+                postres: [],
+                vistaActiva: 'menus',
+                busqueda: '',
+                ingredientesNevera: '',
+                filtroDot: '',
+                filtroEstacion: '',
+                modalDetalleAbierto: false,
+                modalCompraAbierto: false,
+                modalTutorialAbierto: false,
+                modoCoccion: 'expres',
+                raciones: 4,
+                modoCocinaActivo: false,
+                wakeLock: null,
+                listaCompra: [],
+                nuevoItemCompra: '',
+                db: null,
+                timer: { activo: false, terminado: false, segundosRestantes: 0, intervalo: null },
+                editorData: { diaId: null, tipo: '', titulo: '', ingredientes: '', consejo: '', pasos: [], pasosExpres: [], dot: '', esPostre: false },
+
+                async init() {
+                    await this.initIndexedDB();
+                    await this.solicitarPersistenciaStorage();
+                    await this.comprobarTutorial();
+                    await this.cargarListaCompra();
+                },
+
+                initIndexedDB() {
+                    return new Promise((resolve, reject) => {
+                        const request = indexedDB.open(DB_NAME, DB_VERSION);
+                        request.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains('semanas')) db.createObjectStore('semanas', { keyPath: 'id' });
+                            if (!db.objectStoreNames.contains('config')) db.createObjectStore('config', { keyPath: 'clave' });
+                            if (!db.objectStoreNames.contains('compra')) db.createObjectStore('compra', { keyPath: 'uid' });
+                        };
+                        request.onsuccess = (e) => {
+                            this.db = e.target.result;
+                            this.cargarDatosMenu().then(resolve);
+                        };
+                        request.onerror = (e) => reject(e);
+                    });
+                },
+
+                async solicitarPersistenciaStorage() {
+                    if (navigator.storage && navigator.storage.persist) {
+                        await navigator.storage.persist();
+                    }
+                },
+
+                async cargarDatosMenu() {
+                    const tx = this.db.transaction('semanas', 'readonly');
+                    const store = tx.objectStore('semanas');
+                    const req = store.get('menu_completo_v150');
+
+                    return new Promise((resolve) => {
+                        req.onsuccess = () => {
+                            if (req.result && req.result.datos) {
+                                this.semanas = req.result.datos;
+                                this.postres = req.result.postres || this.generarPostresPorDefecto();
+                            } else {
+                                this.semanas = this.generarDatosPorDefecto();
+                                this.postres = this.generarPostresPorDefecto();
+                                this.guardarMenuEnDB();
+                            }
+                            resolve();
+                        };
+                    });
+                },
+
+                guardarMenuEnDB() {
+                    if (!this.db) return;
+                    const tx = this.db.transaction('semanas', 'readwrite');
+                    const store = tx.objectStore('semanas');
+                    store.put({ id: 'menu_completo_v150', datos: JSON.parse(JSON.stringify(this.semanas)), postres: JSON.parse(JSON.stringify(this.postres)) });
+                },
+
+                async comprobarTutorial() {
+                    const tx = this.db.transaction('config', 'readonly');
+                    const store = tx.objectStore('config');
+                    const req = store.get('tutorial_visto');
+                    req.onsuccess = () => {
+                        if (!req.result || !req.result.valor) this.modalTutorialAbierto = true;
+                    };
+                },
+
+                confirmarTutorial() {
+                    const tx = this.db.transaction('config', 'readwrite');
+                    const store = tx.objectStore('config');
+                    store.put({ clave: 'tutorial_visto', valor: true });
+                    this.modalTutorialAbierto = false;
+                },
+
+                abrirTutorial() { this.modalTutorialAbierto = true; },
+
+                // MODO COCINA (SCREEN WAKE LOCK)
+                async toggleModoCocina() {
+                    this.modoCocinaActivo = !this.modoCocinaActivo;
+                    if (this.modoCocinaActivo && 'wakeLock' in navigator) {
+                        try {
+                            this.wakeLock = await navigator.wakeLock.request('screen');
+                        } catch (err) {
+                            console.log('WakeLock no disponible:', err);
+                        }
+                    } else if (!this.modoCocinaActivo && this.wakeLock) {
+                        await this.wakeLock.release();
+                        this.wakeLock = null;
+                    }
+                },
+
+                // TEMPORIZADOR INTEGRADO
+                extraerMinutos(texto) {
+                    const match = texto.match(/(\d+)(?:-\d+)?\s*min/i);
+                    return match ? parseInt(match[1], 10) : 0;
+                },
+
+                iniciarTimer(minutos) {
+                    this.detenerTimer();
+                    this.timer.segundosRestantes = minutos * 60;
+                    this.timer.activo = true;
+                    this.timer.terminado = false;
+
+                    this.timer.intervalo = setInterval(() => {
+                        if (this.timer.segundosRestantes > 0) {
+                            this.timer.segundosRestantes--;
+                        } else {
+                            clearInterval(this.timer.intervalo);
+                            this.timer.activo = false;
+                            this.timer.terminado = true;
+                            this.reproducirAvisoSonoro();
+                        }
+                    }, 1000);
+                },
+
+                detenerTimer() {
+                    if (this.timer.intervalo) clearInterval(this.timer.intervalo);
+                    this.timer.activo = false;
+                    this.timer.terminado = false;
+                },
+
+                formatearTiempo(segundos) {
+                    const m = Math.floor(segundos / 60).toString().padStart(2, '0');
+                    const s = (segundos % 60).toString().padStart(2, '0');
+                    return `${m}:${s}`;
+                },
+
+                reproducirAvisoSonoro() {
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.frequency.value = 880;
+                        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.6);
+                    } catch (e) {}
+                },
+
+                // ESCALADOR DE RACIONES
+                escalarTextoIngrediente(texto, factor) {
+                    if (factor === 1) return texto;
+                    return texto.replace(/^(\d+(?:[.,]\d+)?|\d+\/\d+)(\s*[a-zA-Z]*)/, (match, numStr, unidad) => {
+                        let valor = 0;
+                        if (numStr.includes('/')) {
+                            const [n, d] = numStr.split('/');
+                            valor = parseFloat(n) / parseFloat(d);
+                        } else {
+                            valor = parseFloat(numStr.replace(',', '.'));
+                        }
+                        let nuevoValor = valor * factor;
+                        nuevoValor = Math.round(nuevoValor * 10) / 10;
+                        return `${nuevoValor}${unidad}`;
+                    });
+                },
+
+                get ingredientesEscaladosLista() {
+                    if (!this.editorData.ingredientes) return [];
+                    const factor = this.raciones / 4;
+                    return this.editorData.ingredientes
+                        .split(',')
+                        .map(i => i.trim().replace(/\.$/, ''))
+                        .filter(i => i.length > 0)
+                        .map(i => this.escalarTextoIngrediente(i, factor));
+                },
+
+                abrirDetalle(dia, tipo) {
+                    const receta = dia[tipo];
+                    this.raciones = 4;
+                    this.editorData = {
+                        diaId: dia.id,
+                        tipo: tipo,
+                        titulo: receta.titulo,
+                        ingredientes: receta.ingredientes,
+                        consejo: receta.consejo || "Escurre bien los líquidos sobrantes y rectifica de sal al final de la cocción para equilibrar el sabor.",
+                        pasos: receta.pasos || [],
+                        pasosExpres: receta.pasosExpres || this.generarPasosExpresAutomaticos(receta),
+                        dot: receta.dot,
+                        esPostre: false
+                    };
+                    this.modoCoccion = 'expres';
+                    this.modalDetalleAbierto = true;
+                },
+
+                abrirDetalleDirecto(item) {
+                    this.raciones = 4;
+                    this.editorData = {
+                        diaId: item.diaId,
+                        tipo: item.tipo,
+                        titulo: item.receta.titulo,
+                        ingredientes: item.receta.ingredientes,
+                        consejo: item.receta.consejo || "Ten todos los ingredientes picados antes de encender el fuego para cocinar sin prisas.",
+                        pasos: item.receta.pasos || [],
+                        pasosExpres: item.receta.pasosExpres || this.generarPasosExpresAutomaticos(item.receta),
+                        dot: item.receta.dot,
+                        esPostre: false
+                    };
+                    this.modoCoccion = 'expres';
+                    this.modalDetalleAbierto = true;
+                },
+
+                generarPasosExpresAutomaticos(receta) {
+                    return [
+                        "Sofríe las verduras ya picadas en la olla a presión o sartén amplia a fuego vivo durante 3 minutos.",
+                        "Añade las especias, líquidos o salsas e incorpora el ingrediente principal salpimentado.",
+                        "Cierra la olla a presión y cocina 10-12 minutos (o saltea a fuego fuerte reduciendo el tiempo a la mitad).",
+                        "Despresuriza con cuidado, rectifica de sal y sirve de inmediato."
+                    ];
+                },
+
+                abrirDetallePostre(postre) {
+                    this.raciones = 4;
+                    this.editorData = {
+                        diaId: null,
+                        tipo: postre.categoria,
+                        titulo: postre.titulo,
+                        ingredientes: postre.ingredientes,
+                        consejo: postre.consejo || "Deja templar antes de refrigerar para mantener la textura cremosa perfecta.",
+                        pasos: postre.pasos || [],
+                        pasosExpres: postre.pasos || [],
+                        dot: 'baja',
+                        esPostre: true
+                    };
+                    this.modoCoccion = 'tradicional';
+                    this.modalDetalleAbierto = true;
+                },
+
+                async cerrarDetalle() {
+                    this.modalDetalleAbierto = false;
+                    if (this.modoCocinaActivo) {
+                        await this.toggleModoCocina();
+                    }
+                },
+
+                // LISTA DE LA COMPRA POR PASILLOS
+                categorizarProducto(nombre) {
+                    const n = nombre.toLowerCase();
+                    if (/zanahoria|cebolla|cebolleta|pimiento|tomate|ajo|patata|calabaza|puerro|aguacate|limón|naranja|manzana|plátano|espinaca|acelga|calabacín|berenjena|pepino|lechuga|champiñon|seta|perejil|cilantro|menta|guisante|judía|espárrago|piña|frutos rojos|jengibre/.test(n)) {
+                        return '🥦 Frutería y Verduras';
+                    }
+                    if (/pollo|ternera|pavo|dorada|merluza|salmón|bacalao|almeja|langostino|atún|hamburguesa/.test(n)) {
+                        return '🥩 Carnicería y Pescadería';
+                    }
+                    if (/queso|leche|yogur|mantequilla|bechamel|mozzarella|emmental|havarti|parmesano|quesito/.test(n)) {
+                        return '🧀 Lácteos y Refrigerados';
+                    }
+                    return '🥫 Despensa, Secos y Otros';
+                },
+
+                get listaCompraAgrupada() {
+                    const grupos = {
+                        '🥦 Frutería y Verduras': [],
+                        '🥩 Carnicería y Pescadería': [],
+                        '🧀 Lácteos y Refrigerados': [],
+                        '🥫 Despensa, Secos y Otros': []
+                    };
+                    this.listaCompra.forEach(item => {
+                        const cat = this.categorizarProducto(item.nombre);
+                        grupos[cat].push(item);
+                    });
+                    return grupos;
+                },
+
+                async cargarListaCompra() {
+                    const tx = this.db.transaction('compra', 'readonly');
+                    const store = tx.objectStore('compra');
+                    store.getAll().onsuccess = (e) => { this.listaCompra = e.target.result || []; };
+                },
+
+                guardarListaCompraDB() {
+                    const tx = this.db.transaction('compra', 'readwrite');
+                    const store = tx.objectStore('compra');
+                    store.clear().onsuccess = () => {
+                        this.listaCompra.forEach(item => store.add(JSON.parse(JSON.stringify(item))));
+                    };
+                },
+
+                abrirModalCompra() { this.modalCompraAbierto = true; },
+
+                agregarItemManualCompra() {
+                    if (!this.nuevoItemCompra.trim()) return;
+                    this.listaCompra.push({
+                        uid: Date.now() + Math.random().toString(36).substr(2, 5),
+                        nombre: this.nuevoItemCompra.trim(),
+                        comprado: false
+                    });
+                    this.nuevoItemCompra = '';
+                    this.guardarListaCompraDB();
+                },
+
+                anadirACompraEscalado() {
+                    const lista = this.ingredientesEscaladosLista;
+                    lista.forEach(ing => {
+                        if (ing && !this.listaCompra.some(item => item.nombre.toLowerCase() === ing.toLowerCase())) {
+                            this.listaCompra.push({
+                                uid: Date.now() + Math.random().toString(36).substr(2, 5),
+                                nombre: ing,
+                                comprado: false
+                            });
+                        }
+                    });
+                    this.guardarListaCompraDB();
+                    this.abrirModalCompra();
+                },
+
+                generarCompraSemana(semana) {
+                    semana.dias.forEach(d => {
+                        [d.almuerzo, d.cena].forEach(receta => {
+                            const ings = receta.ingredientes.split(',').map(i => i.trim().replace(/\.$/, ''));
+                            ings.forEach(ing => {
+                                if (ing && !this.listaCompra.some(item => item.nombre.toLowerCase() === ing.toLowerCase())) {
+                                    this.listaCompra.push({
+                                        uid: Date.now() + Math.random().toString(36).substr(2, 5),
+                                        nombre: ing,
+                                        comprado: false
+                                    });
+                                }
+                            });
+                        });
+                    });
+                    this.guardarListaCompraDB();
+                    this.abrirModalCompra();
+                },
+
+                eliminarItemPorUid(uid) {
+                    this.listaCompra = this.listaCompra.filter(i => i.uid !== uid);
+                    this.guardarListaCompraDB();
+                },
+
+                limpiarListaCompra() {
+                    this.listaCompra = [];
+                    this.guardarListaCompraDB();
+                },
+
+                // BUSCADOR INVERSO (TENGO EN NEVERA)
+                toggleSugerenciaNevera(palabra) {
+                    let actuales = this.ingredientesNevera.split(',').map(s => s.trim()).filter(s => s);
+                    const idx = actuales.findIndex(s => s.toLowerCase() === palabra.toLowerCase());
+                    if (idx >= 0) {
+                        actuales.splice(idx, 1);
+                    } else {
+                        actuales.push(palabra);
+                    }
+                    this.ingredientesNevera = actuales.join(', ');
+                },
+
+                get resultadosNevera() {
+                    const buscados = this.ingredientesNevera.toLowerCase().split(',').map(s => s.trim()).filter(s => s.length > 1);
+                    if (buscados.length === 0) return [];
+                    
+                    let matches = [];
+                    this.semanas.forEach(sem => {
+                        sem.dias.forEach(dia => {
+                            ['almuerzo', 'cena'].forEach(tipo => {
+                                const rec = dia[tipo];
+                                const texto = (rec.titulo + ' ' + rec.ingredientes).toLowerCase();
+                                let hits = 0;
+                                buscados.forEach(b => {
+                                    if (texto.includes(b)) hits++;
+                                });
+                                if (hits > 0) {
+                                    matches.push({
+                                        diaId: dia.id,
+                                        tipo: tipo,
+                                        receta: rec,
+                                        coincidencias: hits,
+                                        porcentaje: Math.round((hits / buscados.length) * 100)
+                                    });
+                                }
+                            });
+                        });
+                    });
+                    return matches.sort((a, b) => b.coincidencias - a.coincidencias);
+                },
+
+                exportarDatosJSON() {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ semanas: this.semanas, postres: this.postres }, null, 2));
+                    const a = document.createElement('a');
+                    a.setAttribute("href", dataStr);
+                    a.setAttribute("download", `Menu_Familiar_4x4_v150_${new Date().toISOString().slice(0,10)}.json`);
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                },
+
+                importarDatosJSON(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const datos = JSON.parse(e.target.result);
+                            if (datos.semanas) {
+                                this.semanas = datos.semanas;
+                                this.postres = datos.postres || this.generarPostresPorDefecto();
+                                this.guardarMenuEnDB();
+                                alert('¡Datos e historial cargados correctamente!');
+                            }
+                        } catch (err) { alert('Archivo JSON no válido'); }
+                    };
+                    reader.readAsText(file);
+                },
+
+                get semanasFiltradas() {
+                    if (!this.busqueda && !this.filtroDot && !this.filtroEstacion) return this.semanas;
+                    const q = this.busqueda.toLowerCase();
+                    return this.semanas.map(sem => {
+                        const diasFiltrados = sem.dias.filter(d => {
+                            const coincideDot = !this.filtroDot || d.almuerzo.dot === this.filtroDot || d.cena.dot === this.filtroDot;
+                            const coincideEstacion = !this.filtroEstacion || d.almuerzo.estacion === this.filtroEstacion || d.cena.estacion === this.filtroEstacion;
+                            const coincideTexto = !q || 
+                                d.almuerzo.titulo.toLowerCase().includes(q) ||
+                                d.almuerzo.ingredientes.toLowerCase().includes(q) ||
+                                d.cena.titulo.toLowerCase().includes(q) ||
+                                d.cena.ingredientes.toLowerCase().includes(q);
+                            return coincideDot && coincideEstacion && coincideTexto;
+                        });
+                        return { ...sem, dias: diasFiltrados };
+                    });
+                },
+
+                get postresFiltrados() {
+                    if (!this.busqueda) return this.postres;
+                    const q = this.busqueda.toLowerCase();
+                    return this.postres.filter(p => p.titulo.toLowerCase().includes(q) || p.ingredientes.toLowerCase().includes(q));
+                },
+
+                getSemanaClass(index) {
+                    const classes = ['sem-1', 'sem-2', 'sem-3', 'sem-4'];
+                    return classes[index % 4];
+                },
+
+                generarPostresPorDefecto() {
+                    return [
+                        {
+                            id: 101,
+                            titulo: "Hojaldre de Manzana y Canela Casero",
+                            categoria: "Horno",
+                            estacion: "invierno",
+                            ingredientes: "1 lámina rectangular de masa de hojaldre refrigerada, 2 manzanas reinetas peladas y cortadas en láminas de 2mm, 1 cdta rasa de canela molida, 2 cdas de mermelada de albaricoque sin azúcar, 1 cda de agua templada, zumo de 1/2 limón.",
+                            consejo: "No sobrecargues la masa con demasiada mermelada antes de hornear para que el hojaldre suba crujiente y no se humedezca.",
+                            pasos: [
+                                "Precalienta el horno a 190°C con calor arriba y abajo. Estira la lámina de hojaldre en la bandeja sobre su propio papel vegetal.",
+                                "Pela las manzanas, retira el corazón, córtalas en láminas muy finas y rocíalas con el zumo de limón para evitar que se oxiden.",
+                                "Coloca las láminas de manzana solapadas formando filas sobre el hojaldre, dejando un borde libre de 1 cm alrededor.",
+                                "Espolvorea la canela molida de manera uniforme. Mezcla la mermelada con el agua templada y pincela suavemente las manzanas.",
+                                "Hornea 20 minutos en la rejilla central hasta que los bordes del hojaldre estén dorados y crujientes."
+                            ]
+                        },
+                        {
+                            id: 102,
+                            titulo: "Flan de Huevo Tradicional al Baño María",
+                            categoria: "Cuchara",
+                            estacion: "verano",
+                            ingredientes: "4 huevos camperos tamaño L, 500ml de leche entera (o bebida de soja sin azúcar), 2 cdas de miel suave o sirope de ágave, 1 cdta de extracto de vainilla natural, piel rallada de 1/2 limón (solo la parte amarilla).",
+                            consejo: "Bate los huevos suavemente sin meter aire; si salen muchas burbujas, el flan quedará con agujeritos por dentro en lugar de liso.",
+                            pasos: [
+                                "Bate los huevos en un bol amplio junto a la miel, la vainilla y la ralladura de limón sin batir en exceso.",
+                                "Incorpora la leche a temperatura ambiente y mezcla con varillas manuales hasta integrar.",
+                                "Reparte la mezcla en 4 flaneras individuales aptas para horno.",
+                                "Coloca las flaneras dentro de una fuente honda con dos dedos de agua caliente (baño María) y hornea a 170°C durante 35 minutos hasta que al pinchar con un palillo salga limpio.",
+                                "Deja enfriar a temperatura ambiente y refrigera mínimo 2 horas antes de desmoldar."
+                            ]
+                        },
+                        {
+                            id: 103,
+                            titulo: "Natillas de la Abuela con Canela en Rama",
+                            categoria: "Cuchara",
+                            estacion: "invierno",
+                            ingredientes: "500ml de leche entera, 4 yemas de huevo (sin clara), 15g de maizena (1 cda colmada), 1 rama de canela, piel de 1/2 limón limpia, 2 cdas de eritritol o miel, 4 galletas integrales sin azúcar.",
+                            consejo: "Nunca dejes que la mezcla hierva a borbotones una vez añadidas las yemas, o el huevo se cortará formando grumos.",
+                            pasos: [
+                                "Calienta la leche a fuego suave con la rama de canela y la piel de limón durante 10 minutos para infusionar. Apaga y cuela.",
+                                "En un cuenco aparte, mezcla con varillas las 4 yemas, el endulzante y la maizena hasta obtener una pasta sin grumos.",
+                                "Vierte la leche templada poco a poco sobre las yemas removiendo sin parar.",
+                                "Devuelve todo al cazo a fuego muy bajo y remueve constantemente 6 minutos hasta que espese. Reparte en 4 cuencos con una galleta encima."
+                            ]
+                        },
+                        {
+                            id: 104,
+                            titulo: "Mousse Helada de Yogur y Frutos Rojos",
+                            categoria: "Fresco",
+                            estacion: "verano",
+                            ingredientes: "250g de yogur griego natural sin azúcar (2 envases), 150g de frutos rojos congelados (fresas, frambuesas y arándanos), 1 cda de miel líquida, 4 hojas de menta fresca lavadas.",
+                            consejo: "La fruta debe estar recién sacada del congelador para que enfríe el yogur al instante y cree textura de helado cremoso.",
+                            pasos: [
+                                "Introduce los frutos rojos congelados en el vaso de la batidora junto al yogur griego frío y la miel.",
+                                "Tritura a máxima potencia durante 1 minuto ayudándote de una espátula si es necesario.",
+                                "Sirve inmediatamente en 4 copas individuales y decora con una hoja de menta fresca."
+                            ]
+                        },
+                        {
+                            id: 105,
+                            titulo: "Tarta Express de Plátano, Avena y Cacao",
+                            categoria: "Sano",
+                            estacion: "invierno",
+                            ingredientes: "2 plátanos muy maduros pelados, 100g de copos de avena finos integrales, 20g de cacao puro en polvo 100% desgrasado, 2 huevos medianos, 1 cdta de levadura química (polvo de hornear), 30g de nueces peladas picadas en trozos gruesos.",
+                            consejo: "Cuanto más maduros estén los plátanos (con manchas negras en la piel), más dulce quedará el bizcocho sin añadir azúcar.",
+                            pasos: [
+                                "Aplasta los plátanos en un bol con un tenedor hasta formar un puré fino.",
+                                "Añade los huevos batidos, los copos de avena, el cacao puro y la levadura. Mezcla bien hasta lograr una masa homogénea.",
+                                "Vierte en un molde apto para microondas engrasado con una gota de aceite y reparte las nueces picadas por encima.",
+                                "Cocina 4 minutos en el microondas a 800W (o 20 minutos en el horno precalentado a 180°C)."
+                            ]
+                        }
+                    ];
+                },
+
+                generarDatosPorDefecto() {
+                    return [
+                        {
+                            titulo: "Semana 1: Tradición y Guisos de Cuchara",
+                            dias: [
+                                {
+                                    id: 1,
+                                    almuerzo: {
+                                        titulo: "Lentejas pardinas con verduras (Vianda)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "250g de lentejas pardinas secas (lavadas bajo el grifo), 1 zanahoria pelada en rodajas de 5mm, 1 cebolla mediana picada en dados finos, 1/2 pimiento verde picado en dados pequeños, 1 tomate maduro rallado (sin piel), 2 dientes de ajo picados muy finos, 1 hoja de laurel seca, 1 cdta rasa de pimentón dulce de la Vera, 1 cdta de sal marina, 3 cdas de aceite de oliva virgen extra (EVOO).",
+                                        consejo: "Añade el pimentón fuera del fuego o remueve rápido antes de echar el agua; si se quema amargará todo el guiso.",
+                                        pasos: [
+                                            "En una cazuela con las 3 cdas de aceite EVOO a fuego medio, sofríe la cebolla, el pimiento verde y los ajos picados durante 8 minutos hasta que estén transparentes.",
+                                            "Añade el tomate rallado y sofríe 5 minutos hasta que pierda el agua. Retira un segundo del fuego, incorpora el pimentón dulce y remueve.",
+                                            "Agrega las lentejas pardinas lavadas, la zanahoria en rodajas y la hoja de laurel. Cubre con 1 litro de agua fría.",
+                                            "Añade la sal y cocina a fuego lento semi-tapado durante 35-40 minutos hasta que las lentejas estén tiernas y el caldo ligado."
+                                        ],
+                                        pasosExpres: [
+                                            "Sofríe en la olla a presión la cebolla, pimiento, ajo y tomate con el aceite EVOO durante 3 minutos.",
+                                            "Añade el pimentón, lentejas lavadas, zanahoria en rodajas, laurel y 850ml de agua.",
+                                            "Cierra la olla y cocina 12 minutos desde que suba la válvula de presión.",
+                                            "Despresuriza con cuidado, rectifica de sal y sirve caliente."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Burritos ligeros de pavo y aguacate",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "4 tortillas de trigo integral grandes, 250g de pechuga de pavo cortada en tiras finas, 1 aguacate maduro pelado en láminas, 100g de queso crema ligero para untar, 1/2 cebolleta fresca picada en juliana fina, 1/2 pimiento rojo cortado en tiras muy finas, 1/2 cdta de sal, 1 cda de aceite EVOO.",
+                                        consejo: "Calienta las tortillas 15 segundos en la sartén antes de enrollarlas para que estén flexibles y no se rompan al doblar.",
+                                        pasos: [
+                                            "Saltea las tiras de pavo salpimentadas en una sartén con la cda de aceite EVOO a fuego medio-alto durante 5 minutos hasta dorar.",
+                                            "Corta la cebolleta y el pimiento rojo en tiras finas y lamina el aguacate.",
+                                            "Calienta las tortillas 15 segundos por lado en una sartén limpia.",
+                                            "Unta el queso crema en el centro, coloca el pavo caliente, las verduras y el aguacate. Dobla los extremos y enrolla firme."
+                                        ],
+                                        pasosExpres: [
+                                            "Saltea el pavo a fuego fuerte 3 minutos mientras cortas el aguacate y las verduras.",
+                                            "Unta queso crema en las tortillas, rellena y enrolla de inmediato."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 2,
+                                    almuerzo: {
+                                        titulo: "Dorada al horno a la bilbaína con patatas",
+                                        dot: "baja",
+                                        estacion: "verano",
+                                        ingredientes: "2 doradas limpias abiertas en libro (sin espina central), 3 patatas medianas peladas y cortadas en rodajas de 3mm, 4 dientes de ajo cortados en láminas finas, 1 guindilla seca entera (sin semillas), 2 cdas de vinagre de manzana, 1 cdta de sal marina, pimienta negra, 4 cdas de aceite EVOO.",
+                                        consejo: "Vierte el vinagre de manzana sobre los ajos dorados fuera de la campana extractora y con el fuego apagado para evitar salpicaduras.",
+                                        pasos: [
+                                            "Precalienta el horno a 190°C. Coloca las patatas en rodajas en la bandeja con sal y 2 cdas de aceite EVOO. Hornea 15 minutos.",
+                                            "Coloca las doradas abiertas con la piel hacia abajo sobre las patatas, salpimenta y hornea 12 minutos.",
+                                            "Mientras, dora los ajos laminados con la guindilla en una sartén con las otras 2 cdas de aceite EVOO. Apaga el fuego y añade el vinagre.",
+                                            "Saca el pescado del horno y vierte el refrito de ajos hirviendo por encima al momento de servir."
+                                        ],
+                                        pasosExpres: [
+                                            "Cocina las patatas en rodajas finas en un recipiente apto para microondas tapado durante 6 minutos.",
+                                            "Marca las doradas en una plancha antiadherente caliente 3 minutos por cada lado.",
+                                            "Dora los ajos y guindilla en sartén 1 minuto, añade el vinagre y sirve sobre el pescado."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crema suave de calabaza y puerro",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de calabaza limpia sin piel ni pipas cortada en dados de 2cm, 1 puerro grande (solo la parte blanca) limpio en rodajas, 1 patata mediana pelada en dados, 1 cebolleta picada, 1 cdta de sal, 1 pizca de nuez moscada molida, 2 cdas de aceite EVOO, 600ml de agua.",
+                                        consejo: "No cubras las verduras con demasiada agua; debe quedar justo a ras para que la crema salga espesa y aterciopelada.",
+                                        pasos: [
+                                            "Pocha el puerro y la cebolleta picados en una cazuela con el aceite EVOO a fuego medio durante 6 minutos.",
+                                            "Añade la patata y la calabaza en dados, la sal y la nuez moscada. Cubre justo a ras con los 600ml de agua.",
+                                            "Cuece tapado a fuego medio durante 20 minutos hasta que la calabaza esté muy blanda.",
+                                            "Tritura con batidora de mano durante 2 minutos hasta obtener una textura muy fina."
+                                        ],
+                                        pasosExpres: [
+                                            "Introduce todas las verduras troceadas en la olla a presión con 500ml de agua y sal.",
+                                            "Cocina 6 minutos desde que suba la válvula.",
+                                            "Abre, añade nuez moscada, el aceite EVOO en crudo y tritura bien."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 3,
+                                    almuerzo: {
+                                        titulo: "Macarrones integrales con carne picada de ternera",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "320g de macarrones integrales secos, 300g de carne picada de ternera limpia (magra), 400g de tomate frito casero sin azúcar, 1 cebolleta picada muy fina, 1/2 pimiento rojo picado en dados pequeños, 1 cdta de orégano seco, 1 cdta de sal, 40g de queso rallado emmental, 2 cdas de aceite EVOO.",
+                                        consejo: "Desmenuza la carne picada con una cuchara de madera mientras se dora para que quede suelta y no en bolas grandes.",
+                                        pasos: [
+                                            "Sofríe la cebolleta y el pimiento rojo picados en una sartén amplia con aceite EVOO durante 6 minutos.",
+                                            "Sube el fuego, añade la carne picada salpimentada y dórala 5 minutos removiendo para que quede suelta.",
+                                            "Vierte el tomate frito y el orégano. Baja el fuego y cocina 12 minutos para integrar sabores.",
+                                            "Mientras, cuece los macarrones en abundante agua con sal 9 minutos (al dente), escurre y mezcla con la salsa."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Quesadillas de champiñones y verdura",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "4 tortillas de trigo medianas, 150g de queso emmental o mozzarella rallado, 150g de champiñones frescos limpios y laminados finos, 1/2 cebolleta picada fina, 1/2 pimiento verde picado en dados pequeños, 1/2 cdta de sal, 1 cda de aceite EVOO.",
+                                        consejo: "Saltea bien los champiñones hasta que evaporen toda su agua antes de rellenar la tortilla, así quedará crujiente y no blanda.",
+                                        pasos: [
+                                            "Saltea los champiñones laminados con la cebolleta, el pimiento y la sal en aceite EVOO a fuego fuerte 5 minutos hasta que no quede líquido.",
+                                            "Coloca una tortilla en la sartén limpia a fuego medio, pon una capa de queso, la mitad de las verduras y otro poco de queso.",
+                                            "Tapa con otra tortilla, presiona con una espátula y dora 2 minutos por cada lado hasta que funda el queso."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 4,
+                                    almuerzo: {
+                                        titulo: "Estofado de ternera tradicional con patatas (Vianda)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de carne de ternera para guisar (morcillo o aguja) cortada en dados de 3cm, 3 patatas medianas peladas y chascadas (rotas al cortar), 2 zanahorias peladas en rodajas gruesas, 1 cebolleta picada fina, 1 pimiento rojo picado en tiras, 250ml de caldo natural de carne (0% alcohol), 1 hoja de laurel, 1 cdta de sal, pimienta negra, 3 cdas de aceite EVOO.",
+                                        consejo: "Chasca las patatas (haciendo un corte y tirando para romperlas) en lugar de cortarlas limpias; así sueltan almidón y espesan la salsa.",
+                                        pasos: [
+                                            "Sella los dados de ternera salpimentados a fuego fuerte en una cazuela con aceite EVOO 4 minutos hasta dorar por fuera y reserva en un plato.",
+                                            "En el mismo aceite, sofríe la cebolleta, el pimiento y las zanahorias durante 8 minutos.",
+                                            "Devuelve la carne a la cazuela, añade el laurel y cubre con el caldo de carne y 150ml de agua. Cocina tapado a fuego lento 45 minutos.",
+                                            "Incorpora las patatas chascadas y cocina 20 minutos más hasta que estén tiernas y la salsa haya espesado."
+                                        ],
+                                        pasosExpres: [
+                                            "Dora la ternera salpimentada a fuego fuerte en la olla a presión 3 minutos y retira.",
+                                            "Sofríe las verduras 2 minutos, reincorpora la carne, patatas chascadas, zanahorias, laurel y 250ml de caldo.",
+                                            "Cierra la olla y cocina a alta presión durante 18 minutos.",
+                                            "Despresuriza y deja reposar 3 minutos antes de servir."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Ensalada templada de garbanzos y atún",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "400g de garbanzos cocidos de bote (lavados y escurridos), 2 latas de atún claro en aceite de oliva (escurridas), 1 tomate maduro firme cortado en dados de 1cm, 1/2 cebolleta picada muy fina, 1/2 pimiento verde picado en dados pequeños, 40g de aceitunas verdes sin hueso en rodajas, 1/2 cdta de sal, 1 cda de vinagre de manzana, 2 cdas de aceite EVOO.",
+                                        consejo: "Enjuaga muy bien los garbanzos de bote bajo el grifo hasta que deje de salir espuma para que resulten mucho más digestivos.",
+                                        pasos: [
+                                            "Lava los garbanzos cocidos bajo el agua fría y escúrrelos bien.",
+                                            "Pica el tomate, la cebolleta y el pimiento verde en dados uniformes.",
+                                            "Mezcla en un bol los garbanzos, las verduras, las aceitunas en rodajas y el atún desmigado.",
+                                            "Aliña con la sal, el vinagre de manzana y el aceite EVOO mezclando con suavidad."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 5,
+                                    almuerzo: {
+                                        titulo: "Merluza en salsa verde con almejas",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "4 lomos de merluza fresca limpios sin espinas, 200g de almejas frescas (purgadas en agua con sal), 3 dientes de ajo picados muy finos, 1 cda rasa de harina de trigo (15g), 300ml de caldo de pescado casero, 2 cdas colmadas de perejil fresco picado fino, 1/2 cdta de sal, 3 cdas de aceite EVOO.",
+                                        consejo: "Mueve la cazuela haciendo movimientos circulares suaves por las asas en lugar de meter la cuchara para que la merluza no se rompa.",
+                                        pasos: [
+                                            "En una cazuela baja y ancha, dora los ajos picados en aceite EVOO a fuego suave 1 minuto sin que tomen color oscuro.",
+                                            "Añade la harina y remueve 1 minuto con cuchara de madera para cocinarla.",
+                                            "Vierte el caldo de pescado templado poco a poco removiendo con varillas hasta que ligue una salsa suave.",
+                                            "Coloca los lomos de merluza salados con la piel hacia arriba, reparte las almejas lavadas y el perejil picado. Tapa y cocina 8 minutos hasta que se abran las almejas."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Sándwich completo de pavo, queso y vegetales",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "8 rebanadas de pan de molde integral, 8 lonchas finas de pechuga de pavo cocida (95% carne), 4 lonchas de queso havarti ligero, 1 tomate maduro cortado en rodajas finas, 4 hojas de lechuga trocadero lavadas y secas, 2 cdas de mayonesa ligera.",
+                                        consejo: "Seca muy bien las hojas de lechuga y coloca el queso entre el pan y el tomate para evitar que el pan se humedezca.",
+                                        pasos: [
+                                            "Tuesta ligeramente las 8 rebanadas de pan integral en tostadora o sartén.",
+                                            "Unta una fina capa de mayonesa ligera en cuatro de las rebanadas.",
+                                            "Monta cada sándwich poniendo una loncha de queso, las rodajas de tomate, el pavo, la lechuga seca y cierra con el resto del pan. Corta en diagonal."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 6,
+                                    almuerzo: {
+                                        titulo: "Arroz mediterráneo de verduras al horno",
+                                        dot: "alta",
+                                        estacion: "verano",
+                                        ingredientes: "300g de arroz redondo tipo bomba, 750ml de caldo vegetal caliente, 150g de garbanzos cocidos escurridos, 1 tomate maduro cortado en 4 rodajas gruesas, 1 cabeza de ajos entera limpia, 1 pimiento rojo cortado en tiras gruesas, 1 pizca de hebras de azafrán (o cúrcuma), 1 cdta de sal, 4 cdas de aceite EVOO.",
+                                        consejo: "Respeta la proporción exacta de caldo caliente (2,5 partes de caldo por 1 de arroz) y no abras el horno durante los primeros 15 minutos.",
+                                        pasos: [
+                                            "Precalienta el horno a 220°C. En una cazuela apta para horno (o paellera), sofríe la cabeza de ajos entera y el pimiento en tiras en aceite EVOO 5 minutos.",
+                                            "Incorpora el arroz y los garbanzos, nacarando (removiendo) durante 2 minutos hasta que el grano quede brillante.",
+                                            "Vierte los 750ml de caldo hirviendo con el azafrán y la sal. Reparte uniforme.",
+                                            "Coloca las rodajas de tomate encima y mete al horno 18 minutos hasta que el líquido se absorba por completo."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Pizza casera BBQ de pollo (Sin cerdo)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "1 base de pizza fina rectangular, 150g de pechuga de pollo cocinada y desmigada en tiras, 3 cdas de salsa barbacoa (BBQ) suave, 150g de queso mozzarella rallado para fundir, 1/2 cebolleta cortada en aros muy finos, 1/2 pimiento verde cortado en tiras finas, 1 cdta de orégano.",
+                                        consejo: "Hornea en la parte baja del horno los primeros 8 minutos para que la base quede crujiente y súbela los últimos 4 minutos.",
+                                        pasos: [
+                                            "Precalienta el horno a 220°C.",
+                                            "Extiende la salsa barbacoa sobre la base dejando 1 cm en el borde. Reparte la mozzarella rallada.",
+                                            "Distribuye el pollo desmigado, los aros de cebolleta, el pimiento verde y el orégano.",
+                                            "Hornea 12-14 minutos hasta que los bordes estén dorados y el queso burbujee."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 7,
+                                    almuerzo: {
+                                        titulo: "Salmón al curry cremoso con arroz basmati",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "4 lomos de salmón fresco (sin piel ni espinas) cortados en dados de 3cm, 200ml de leche de coco ligera para cocinar, 200g de arroz basmati lavado, 1 cebolleta picada muy fina, 1 cda rasa de curry suave en polvo, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "No cocines el salmón en exceso; al reincorporarlo al final solo necesita 2 minutos con el calor de la salsa para quedar jugoso.",
+                                        pasos: [
+                                            "Cuece el arroz basmati en 400ml de agua con una pizca de sal a fuego suave tapado durante 11 minutos.",
+                                            "Mientras, saltea los dados de salmón salpimentados en una sartén con 1 cda de aceite EVOO a fuego fuerte 2 minutos (solo sellar) y reserva.",
+                                            "En la misma sartén con la otra cda de aceite, pocha la cebolleta picada 5 minutos. Añade el curry y remueve 30 segundos.",
+                                            "Vierte la leche de coco, reduce 4 minutos a fuego medio, devuelve el salmón 2 minutos y sirve junto al arroz."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Tortilla de patatas con cebolla y pimiento",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "5 patatas medianas peladas y cortadas en láminas finas de 3mm, 6 huevos camperos tamaño L, 1 cebolla mediana picada en juliana fina, 1/2 pimiento verde picado en dados pequeños, 1 cdta de sal marina, 150ml de aceite de oliva suave.",
+                                        consejo: "Deja reposar la mezcla de patata caliente con el huevo batido durante 5 minutos antes de cuajar; absorberá el huevo y quedará súper jugosa.",
+                                        pasos: [
+                                            "Fríe las patatas, la cebolla y el pimiento a fuego medio-suave en el aceite de oliva durante 18 minutos hasta que estén muy tiernos sin dorarse en exceso.",
+                                            "Escurre bien el aceite con un colador.",
+                                            "Bate los 6 huevos en un bol grande con la sal e incorpora la patata caliente. Remueve y deja reposar 5 minutos.",
+                                            "Cuaja en una sartén antiadherente con unas gotas de aceite 3 minutos por cada lado a fuego medio."
+                                        ],
+                                        pasosExpres: [
+                                            "Pon las patatas, cebolla y pimiento laminados en un recipiente apto para microondas con 2 cdas de aceite y sal. Cocina tapado 9 minutos.",
+                                            "Mezcla con los 6 huevos batidos y deja reposar 2 minutos.",
+                                            "Cuaja en sartén antiadherente 2 minutos por cada lado."
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            titulo: "Semana 2: Pescados, Lasañas y Variedad",
+                            dias: [
+                                {
+                                    id: 8,
+                                    almuerzo: {
+                                        titulo: "Garbanzos estofados con espinacas (Vianda)",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de garbanzos cocidos de bote (enjuagados), 200g de hojas de espinacas frescas limpias, 3 dientes de ajo laminados finos, 1 tomate maduro rallado, 1 cebolleta picada fina, 1 cdta de comino molido, 1 cdta de pimentón dulce, 1 cdta de sal, 3 cdas de aceite EVOO.",
+                                        consejo: "Echa las espinacas frescas en dos tandas; parecen mucho volumen al principio pero en 2 minutos reducen a una cuarta parte.",
+                                        pasos: [
+                                            "Sofríe los ajos laminados y la cebolleta en una cazuela con aceite EVOO 5 minutos.",
+                                            "Agrega el tomate rallado, el pimentón y el comino. Sofríe 3 minutos.",
+                                            "Añade las espinacas frescas removiendo 2 minutos hasta que pierdan volumen.",
+                                            "Incorpora los garbanzos escurridos, 150ml de agua y la sal. Cocina a fuego medio 10 minutos para espesar el caldo."
+                                        ],
+                                        pasosExpres: [
+                                            "Saltea ajos, comino y pimentón en sartén honda 1 minuto.",
+                                            "Añade las espinacas frescas 2 minutos hasta reducir.",
+                                            "Incorpora los garbanzos cocidos con 100ml de agua y hierve 4 minutos a fuego vivo."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crema de calabacín con quesitos suaves",
+                                        dot: "baja",
+                                        estacion: "verano",
+                                        ingredientes: "2 calabacines medianos lavados (con piel si es tierna) cortados en dados, 1 cebolla mediana picada gruesa, 1 patata mediana pelada en dados, 4 quesitos en porciones ligeros, 1 cdta de sal, 1 pizca de pimienta blanca, 2 cdas de aceite EVOO, 500ml de agua.",
+                                        consejo: "Dejar la piel verde del calabacín bien lavada aporta color vibrante y mucha fibra extra a la crema.",
+                                        pasos: [
+                                            "Pocha la cebolla picada en una cazuela con el aceite EVOO durante 5 minutos.",
+                                            "Agrega la patata y el calabacín en dados, cubre con los 500ml de agua y añade la sal.",
+                                            "Cuece tapado 18 minutos hasta que la patata esté blanda.",
+                                            "Retira del fuego, añade los 4 quesitos y tritura 2 minutos hasta que quede sin grumos."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 9,
+                                    almuerzo: {
+                                        titulo: "Muslos de pollo a la naranja y jengibre",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "4 muslos de pollo limpios sin piel, zumo recién exprimido de 3 naranjas (250ml), 1 cebolleta picada fina, 1 pimiento rojo cortado en tiras, 1 cdta de jengibre fresco rallado (o 1/2 cdta en polvo), 1 cdta de sal, pimienta negra, 2 cdas de aceite EVOO.",
+                                        consejo: "Dora bien el pollo al principio a fuego vivo para sellar los jugos; así quedará tierno por dentro tras cocer en el zumo.",
+                                        pasos: [
+                                            "Salpimenta los muslos de pollo y dóralos en una cazuela con aceite EVOO a fuego fuerte 6 minutos girándolos.",
+                                            "Baja el fuego, añade la cebolleta, el pimiento rojo y el jengibre rallado. Sofríe 5 minutos.",
+                                            "Vierte el zumo de naranja y deja que reduzca y cocine tapado a fuego suave durante 25 minutos."
+                                        ],
+                                        pasosExpres: [
+                                            "Dora los muslos de pollo en la olla a presión 4 minutos.",
+                                            "Añade la cebolleta, pimiento, jengibre y el zumo de naranja.",
+                                            "Cierra la olla y cocina 12 minutos a alta presión."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Hummus casero con pan de pita y verduras",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "400g de garbanzos cocidos escurridos, 2 cdas de pasta de sésamo (tahini), 1 diente de ajo pequeño sin el germen central, zumo de 1/2 limón, 1/2 cdta de comino molido, 3 cdas de aceite EVOO, 1/2 cdta de sal, 2 zanahorias peladas en bastones, 4 panes de pita integrales.",
+                                        consejo: "Quita el tallito verde del centro del ajo antes de triturar para que el hummus no repita ni pique en exceso.",
+                                        pasos: [
+                                            "Tritura en batidora los garbanzos, el ajo, tahini, limón, comino, sal y 2 cdas de aceite EVOO añadiendo 3 cdas de agua fría para lograr cremosidad.",
+                                            "Pela y corta las zanahorias en bastones largos.",
+                                            "Tuesta los panes de pita y córtalos en triángulos.",
+                                            "Sirve el hummus en un cuenco con un hilo del aceite restante y pimentón por encima."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 10,
+                                    almuerzo: {
+                                        titulo: "Lasaña casera de verduras asadas y berenjena",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "12 placas de lasaña precocida, 1 berenjena grande cortada en láminas de 5mm, 1 calabacín grande cortado en láminas de 5mm, 400g de tomate frito casero, 500ml de salsa bechamel suave, 100g de queso emmental rallado, 1 cdta de sal, 3 cdas de aceite EVOO.",
+                                        consejo: "Cocina las láminas de berenjena y calabacín a la plancha antes de montar la lasaña para que no suelten agua dentro del horno.",
+                                        pasos: [
+                                            "Haz las láminas de berenjena y calabacín saladas en una plancha con aceite EVOO 2 minutos por lado.",
+                                            "Hidrata las placas de lasaña en agua caliente según el fabricante.",
+                                            "En una fuente de horno, alterna capas de placas de pasta, verduras a la plancha, tomate frito y un poco de bechamel.",
+                                            "Termina cubriendo con el resto de la bechamel y el queso rallado. Hornea a 200°C durante 20 minutos hasta gratinar."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Gazpacho fresco tradicional",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "1kg de tomates pera maduros lavados y troceados, 1/2 pepino pelado sin pepitas, 1/2 pimiento verde limpio troceado, 1/4 de cebolleta fresca, 1 diente de ajo sin germen, 50ml de aceite EVOO, 2 cdas de vinagre de manzana, 1 cdta de sal marina.",
+                                        consejo: "Añade el aceite de oliva al final poco a poco mientras bates para que emulsione y quede con un color naranja cremoso.",
+                                        pasos: [
+                                            "Trocea los tomates, el pepino pelado, el pimiento verde, la cebolleta y el ajo.",
+                                            "Tritura todas las verduras en la batidora a máxima potencia durante 2 minutos.",
+                                            "Añade la sal, el vinagre y vierte el aceite EVOO despacio sin dejar de batir.",
+                                            "Pasa por un colador fino si prefieres textura sin pieles y enfría en nevera 1 hora."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 11,
+                                    almuerzo: {
+                                        titulo: "Salteado de ternera con arroz largo",
+                                        dot: "baja",
+                                        estacion: "verano",
+                                        ingredientes: "400g de filetes de ternera tierna cortados en tiras de 1cm, 200g de arroz largo, 1 pimiento rojo cortado en tiras finas, 1 cebolleta cortada en juliana, 2 cdas de salsa de soja baja en sal, 1 diente de ajo picado fino, 1/2 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Saltea la ternera a fuego muy fuerte y en tanda única sin amontonar para que se dore por fuera sin cocerse en su propio jugo.",
+                                        pasos: [
+                                            "Cuece el arroz largo en abundante agua con sal durante 13 minutos y escurre.",
+                                            "Saltea en una sartén amplia o wok el pimiento, la cebolleta y el ajo con aceite EVOO a fuego fuerte 4 minutos.",
+                                            "Aparta las verduras a un lado de la sartén, sube el fuego y saltea las tiras de ternera 3 minutos.",
+                                            "Mezcla todo, vierte las 2 cdas de salsa de soja, saltea 1 minuto más y sirve sobre el arroz."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Ensalada fría de pasta y atún",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "250g de pasta corta (hélices o lazos), 2 latas de atún en aceite de oliva escurridas, 100g de maíz dulce cocido escurrido, 1 tomate maduro firme en dados de 1cm, 1/2 cebolleta picada muy fina, 40g de aceitunas negras sin hueso en rodajas, 1 cdta de orégano seco, 3 cdas de aceite EVOO, 1 cda de vinagre, 1 cdta de sal.",
+                                        consejo: "Refresca la pasta bajo el grifo de agua fría inmediatamente después de escurrirla para cortar la cocción y que quede suelta.",
+                                        pasos: [
+                                            "Cuece la pasta en agua hirviendo con sal durante 9 minutos, escurre y enfría bajo el grifo.",
+                                            "Pica el tomate en dados, la cebolleta fina y corta las aceitunas en rodajas.",
+                                            "Mezcla en una ensaladera la pasta fría con el atún desmigado, el maíz y las verduras.",
+                                            "Aliña con sal, orégano, vinagre y aceite EVOO."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 12,
+                                    almuerzo: {
+                                        titulo: "Wok de fideos integrales con langostinos",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "200g de fideos integrales tipo noodles, 200g de colas de langostinos peladas y limpias, 1 pimiento rojo en tiras finas, 1 pimiento verde en tiras finas, 1 cebolleta en juliana, 3 cdas de salsa de soja, 1/2 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "No sobrecargues los fideos al hervirlos; déjalos 1 minuto menos de lo que indica el envase porque terminarán de hacerse en el wok.",
+                                        pasos: [
+                                            "Cuece los fideos en agua hirviendo durante 3 minutos y escurre.",
+                                            "Saltea en un wok o sartén grande los pimientos y la cebolleta con aceite EVOO a fuego fuerte 4 minutos.",
+                                            "Incorpora los langostinos pelados y saltea 2 minutos hasta que cambien de color.",
+                                            "Añade los fideos escurridos y la salsa de soja, salteando todo junto 2 minutos más."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Revuelto cremoso de setas y perejil",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "250g de setas variadas limpias y troceadas, 4 huevos camperos tamaño L, 2 dientes de ajo picados muy finos, 2 cdas de perejil fresco picado, 1/2 cdta de sal, pimienta negra, 2 cdas de aceite EVOO.",
+                                        consejo: "Aparta la sartén del fuego justo antes de que el huevo termine de cuajar por completo; el calor residual lo dejará jugoso y cremoso.",
+                                        pasos: [
+                                            "Dora los ajos picados en aceite EVOO 1 minuto y añade las setas salpimentadas salteando 6 minutos hasta que evaporen su agua.",
+                                            "Bate ligeramente los 4 huevos con el perejil picado.",
+                                            "Baja el fuego al mínimo, vierte los huevos sobre las setas y remueve suavemente con espátula hasta que cuajen cremosos."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 13,
+                                    almuerzo: {
+                                        titulo: "Nuggets caseros de pollo al horno",
+                                        dot: "alta",
+                                        estacion: "verano",
+                                        ingredientes: "400g de pechuga de pollo limpia cortada en dados de 3cm, 100g de copos de maíz sin azúcar triturados gruesos, 1 huevo batido, 3 cdas de harina de trigo, 1 cdta de ajo en polvo, 1 cdta de orégano seco, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Tritura los copos de maíz con las manos o un rodillo dentro de una bolsa para que queden trocitos irregulares y crujientes.",
+                                        pasos: [
+                                            "Precalienta el horno a 200°C. Sazona los trozos de pollo con sal, ajo en polvo y orégano.",
+                                            "Pasa cada trozo primero por harina, luego por el huevo batido y finalmente rebózalo bien en los copos de maíz triturados.",
+                                            "Coloca en una bandeja con papel de horno y rocía con un hilo fino de aceite EVOO.",
+                                            "Hornea 15 minutos dándoles la vuelta a mitad de tiempo hasta que estén dorados."
+                                        ],
+                                        pasosExpres: [
+                                            "Sazona y empana el pollo con huevo y copos de maíz triturados.",
+                                            "Cocina en freidora de aire a 190°C durante 9 minutos girándolos a mitad de cocción."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Pizza casera de ternera y mozzarella",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "1 base de pizza fina, 150g de carne picada de ternera previamente salteada 3 min, 100g de tomate frito casero, 150g de queso mozzarella rallado, 1/2 cebolleta en aros finos, 1/2 pimiento verde en tiras finas, 1 cdta de orégano.",
+                                        consejo: "Saltea ligeramente la carne picada en sartén antes de ponerla en la pizza para evitar que suelte agua sobre el queso en el horno.",
+                                        pasos: [
+                                            "Precalienta el horno a 220°C.",
+                                            "Extiende el tomate frito sobre la base y cubre con la mozzarella rallada.",
+                                            "Reparte la ternera salteada, la cebolleta, el pimiento verde y el orégano.",
+                                            "Hornea 12-14 minutos hasta que esté dorada y crujiente."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 14,
+                                    almuerzo: {
+                                        titulo: "Salmón al horno con patatas y hortalizas",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "4 lomos de salmón fresco limpios, 2 patatas medianas peladas en rodajas de 3mm, 1 cebolleta cortada en juliana, 1 pimiento verde cortado en tiras, 1 tomate maduro en 4 rodajas, 1 cdta de sal, 1 cdta de eneldo seco (o perejil), 3 cdas de aceite EVOO.",
+                                        consejo: "Hornea las verduras antes de poner el salmón encima, ya que el pescado se hace en la mitad de tiempo que las patatas.",
+                                        pasos: [
+                                            "Precalienta el horno a 190°C. Pon las patatas, cebolleta y pimiento en la bandeja con sal y 2 cdas de aceite EVOO. Hornea 20 minutos.",
+                                            "Coloca los lomos de salmón salados encima de las verduras, pon una rodaja de tomate sobre cada lomo y espolvorea el eneldo.",
+                                            "Hornea 11 minutos más hasta que el salmón esté hecho y jugoso."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Tabulé rápido de cuscús y vegetales",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "200g de cuscús integral o normal, 200ml de caldo vegetal hirviendo, 2 tomates firmes cortados en dados de 5mm, 1 pepino pelado en dados de 5mm, 1/2 cebolleta picada muy fina, 3 cdas de perejil fresco picado, zumo de 1 limón, 1 cdta de sal, 3 cdas de aceite EVOO.",
+                                        consejo: "Remueve el cuscús con un tenedor después de hidratarlo para separar los granos y que quede suelto y esponjoso.",
+                                        pasos: [
+                                            "Pon el cuscús en un bol, vierte los 200ml de caldo hirviendo con 1 cda de aceite, tapa 5 minutos y separa los granos con un tenedor.",
+                                            "Pica los tomates, el pepino, la cebolleta y el perejil en dados muy pequeños.",
+                                            "Cuando el cuscús esté templado, mezcla con todas las verduras.",
+                                            "Aliña con el zumo de limón, sal y el resto del aceite EVOO."
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            titulo: "Semana 3: Sabores de Cuchara y Confort",
+                            dias: [
+                                {
+                                    id: 15,
+                                    almuerzo: {
+                                        titulo: "Alubias blancas estofadas con acelgas (Vianda)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de alubias blancas cocidas de bote (enjuagadas), 200g de acelgas frescas limpias y troceadas (pencas y hojas), 2 dientes de ajo picados finos, 1 tomate maduro rallado, 1 pimiento rojo picado en dados pequeños, 1 cdta de pimentón dulce, 1 cdta de sal, 3 cdas de aceite EVOO, 250ml de agua.",
+                                        consejo: "Chasca un par de cucharadas de alubias cocidas con el tenedor dentro de la cazuela para espesar el caldo de forma natural.",
+                                        pasos: [
+                                            "Sofríe los ajos y el pimiento rojo en una cazuela con aceite EVOO durante 6 minutos.",
+                                            "Añade el tomate rallado y sofríe 4 minutos. Incorpora el pimentón dulce y las acelgas troceadas salteando 3 minutos.",
+                                            "Agrega las alubias lavadas, la sal y los 250ml de agua. Cocina a fuego medio 15 minutos hasta ligar la salsa."
+                                        ],
+                                        pasosExpres: [
+                                            "Sofríe ajos, pimiento y tomate en la olla a presión 3 minutos.",
+                                            "Añade pimentón, acelgas, alubias y 200ml de agua.",
+                                            "Cierra la olla y cocina 6 minutos."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crema de lenteja roja al comino",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "200g de lentejas rojas peladas (no necesitan remojo), 1 cebolleta picada fina, 1 pimiento verde picado fino, 1 tomate maduro rallado, 1 cdta de comino molido, 1 cdta de sal, 2 cdas de aceite EVOO, 650ml de agua.",
+                                        consejo: "Las lentejas rojas no tienen piel y se deshacen solas en 15 minutos, creando una crema suave y muy digestiva para la cena.",
+                                        pasos: [
+                                            "Sofríe la cebolleta y el pimiento picados en aceite EVOO 5 minutos.",
+                                            "Añade el tomate rallado y el comino removiendo 2 minutos.",
+                                            "Incorpora las lentejas rojas lavadas, la sal y los 650ml de agua. Cuece 16 minutos.",
+                                            "Tritura con batidora hasta dejar una crema fina."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 16,
+                                    almuerzo: {
+                                        titulo: "Pollo al curry suave con arroz basmati",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "400g de pechuga de pollo limpia cortada en dados de 2cm, 200ml de leche de coco para cocinar, 200g de arroz basmati, 1 cebolleta picada fina, 1 pimiento verde picado en dados pequeños, 1 cda rasa de curry suave en polvo, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Tuesta el polvo de curry junto con las verduras 30 segundos antes de echar la leche de coco para despertar todo su aroma.",
+                                        pasos: [
+                                            "Cuece el arroz basmati en 400ml de agua con sal a fuego suave tapado 11 minutos.",
+                                            "Mientras, dora los dados de pollo salados en una sartén amplia con aceite EVOO a fuego fuerte 4 minutos y reserva.",
+                                            "En la misma sartén, pocha la cebolleta y el pimiento 5 minutos. Añade el curry y remueve 30 segundos.",
+                                            "Vierte la leche de coco, reincorpora el pollo y reduce 8 minutos a fuego medio. Sirve con el arroz."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Tostas de aguacate, pavo y tomate cherry",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "4 rebanadas gruesas de pan integral de hogaza, 1 aguacate maduro pelado, 4 lonchas de pechuga de pavo cocida, 8 tomates cherry lavados y cortados por la mitad, 1/2 cdta de sal, pimienta negra molida, 1 cda de aceite EVOO, unas gotas de zumo de limón.",
+                                        consejo: "Añade unas gotas de limón al aguacate machacado para que mantenga su color verde brillante y realce su sabor.",
+                                        pasos: [
+                                            "Tuesta las rebanadas de pan hasta que queden crujientes.",
+                                            "Machaca el aguacate con un tenedor junto con la sal y las gotas de limón.",
+                                            "Unta el aguacate sobre las tostadas, coloca el pavo encima y reparte los tomates cherry cortados.",
+                                            "Termina con pimienta recién molida y un hilo de aceite EVOO."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 17,
+                                    almuerzo: {
+                                        titulo: "Marmitako de salmón y patatas (Vianda)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "400g de salmón fresco limpio (sin piel ni espinas) en dados de 3cm, 4 patatas medianas peladas y chascadas, 1 cebolleta picada fina, 1 pimiento verde en dados, 1 pimiento rojo en dados, 1 cda de carne de pimiento choricero, 600ml de caldo de pescado, 1 cdta de sal, 3 cdas de aceite EVOO.",
+                                        consejo: "Apaga el fuego antes de echar los dados de salmón y tapa la cazuela; en 4 minutos se cocinará solo con el calor del caldo sin secarse.",
+                                        pasos: [
+                                            "Pocha la cebolleta y los pimientos picados en una cazuela con aceite EVOO 8 minutos.",
+                                            "Añade la carne de pimiento choricero y las patatas chascadas, rehogando 2 minutos.",
+                                            "Cubre con el caldo de pescado caliente, añade sal y cocina 20 minutos hasta que las patatas estén tiernas.",
+                                            "Apaga el fuego, introduce los dados de salmón salados, tapa la cazuela y deja reposar 4 minutos antes de servir."
+                                        ],
+                                        pasosExpres: [
+                                            "Pocha las verduras en olla a presión 3 minutos.",
+                                            "Añade patatas chascadas, choricero y 500ml de caldo. Cierra la olla y cocina 8 minutos.",
+                                            "Abre la olla con el fuego ya apagado, mete el salmón en dados y tapa 4 minutos."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Huevos rellenos de atún y pimiento",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "6 huevos camperos tamaño L, 2 latas de atún en aceite de oliva bien escurridas, 2 cdas de mayonesa ligera, 1/2 pimiento rojo picado en dados muy finos, 1/2 cebolleta picada muy fina, 1/4 cdta de sal.",
+                                        consejo: "Para que los huevos duros se pelen sin romperse, pásalos a un bol con agua muy fría y hielo nada más terminar los 10 minutos de cocción.",
+                                        pasos: [
+                                            "Cuece los huevos en agua hirviendo durante 10 minutos exactos. Enfría en agua fría, pela y corta por la mitad a lo largo.",
+                                            "Saca las yemas a un bol y aplástalas con un tenedor junto al atún escurrido, la mayonesa, la cebolleta y el pimiento.",
+                                            "Rellena las mitades de clara con la mezcla y conserva en frío hasta servir."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 18,
+                                    almuerzo: {
+                                        titulo: "Hamburguesa completa al plato con verduras",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "4 hamburguesas de carne de ternera 100%, 4 lonchas de queso havarti o cheddar, 1 tomate maduro en rodajas, 4 hojas de lechuga limpia, 1 cebolleta cortada en aros, 1 pimiento verde en tiras, 1/2 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Pon la loncha de queso encima de la hamburguesa durante el último minuto de cocción y tapa la sartén 30 segundos para que se funda perfecto.",
+                                        pasos: [
+                                            "Saltea los aros de cebolleta y las tiras de pimiento verde en una plancha con 1 cda de aceite EVOO 6 minutos y reserva.",
+                                            "En la misma plancha fuerte, cocina las hamburguesas saladas 3 minutos por un lado, dales la vuelta, pon el queso encima y cocina 2 minutos más.",
+                                            "Sirve al plato acompañadas de la verdura a la plancha, rodajas de tomate y lechuga aliñada."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crema suave de zanahoria y jengibre",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de zanahorias peladas y cortadas en rodajas, 1 patata mediana pelada en dados, 1 puerro limpio (parte blanca) en rodajas, 1 cdta de jengibre fresco rallado, 1 cdta de sal, 2 cdas de aceite EVOO, 600ml de agua.",
+                                        consejo: "Corta las zanahorias en rodajas finas para que se cuezan igual de rápido que la patata y la crema quede sin hebras.",
+                                        pasos: [
+                                            "Pocha el puerro en una cazuela con aceite EVOO 5 minutos.",
+                                            "Añade las zanahorias, la patata, el jengibre rallado, la sal y los 600ml de agua.",
+                                            "Cuece tapado 20 minutos hasta que estén muy tiernas y tritura 2 minutos a máxima potencia."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 19,
+                                    almuerzo: {
+                                        titulo: "Lasaña Boloñesa casera de ternera",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "12 placas de lasaña precocida, 400g de carne picada de ternera limpia, 400g de tomate frito casero, 1 cebolleta picada fina, 500ml de salsa bechamel, 100g de queso rallado para gratinar, 1 cdta de orégano, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Deja reposar la lasaña 10 minutos fuera del horno antes de cortarla; así las capas se asientan y no se desmorona al servir.",
+                                        pasos: [
+                                            "Sofríe la cebolleta en aceite EVOO 5 minutos. Añade la ternera picada salpimentada y dórala 5 minutos.",
+                                            "Vierte el tomate frito y el orégano, cocinando 10 minutos a fuego suave.",
+                                            "Hidrata las placas de pasta y monta en una fuente capas de pasta, boloñesa y un hilo de bechamel.",
+                                            "Cubre con el resto de la bechamel y queso rallado. Hornea a 200°C durante 20 minutos."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Fajitas de pollo y pimientos tres colores",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "4 tortillas de trigo medianas, 300g de pechuga de pollo cortada en tiras finas, 1/2 pimiento rojo en tiras finas, 1/2 pimiento verde en tiras finas, 1/2 cebolleta en juliana, 1 cdta de sazonador para fajitas (comino, pimentón y ajo), 1/2 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Corta el pollo y los pimientos del mismo grosor (tiras finas) para que se cocinen al mismo tiempo y sean fáciles de morder.",
+                                        pasos: [
+                                            "Saltea los pimientos y la cebolleta en sartén amplia con aceite EVOO a fuego fuerte 4 minutos.",
+                                            "Añade las tiras de pollo, la sal y las especias de fajita, salteando todo junto 5 minutos más.",
+                                            "Calienta las tortillas 15 segundos, rellena con el salteado caliente y enrolla."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 20,
+                                    almuerzo: {
+                                        titulo: "Pechugas de pollo rellenas de queso y espinacas",
+                                        dot: "alta",
+                                        estacion: "verano",
+                                        ingredientes: "4 pechugas de pollo enteras gruesas, 100g de espinacas frescas salteadas y bien escurridas, 4 lonchas de queso havarti, 1/2 cebolleta picada fina, 1 cdta de sal, pimienta negra, 2 cdas de aceite EVOO, 8 palillos de madera.",
+                                        consejo: "Escurre muy bien las espinacas salteadas apretándolas con una cuchara antes de rellenar el pollo para que el queso no resbale.",
+                                        pasos: [
+                                            "Abre cada pechuga por la mitad horizontalmente sin llegar a separar las dos partes (corte en libro) y salpimenta.",
+                                            "Saltea la cebolleta y las espinacas 3 minutos, escurre bien y reparte dentro de las pechugas junto con una loncha de queso.",
+                                            "Cierra los bordes sujetando con dos palillos por pechuga.",
+                                            "Dora en sartén a fuego medio con aceite EVOO 6 minutos por cada lado tapado. Retira los palillos antes de servir."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Pizza casera cuatro quesos con verdura",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "1 base de pizza fina, 100g de tomate frito casero, 150g de mezcla de 4 quesos rallados (mozzarella, emmental, gouda, curado), 1/2 cebolleta cortada en aros muy finos, 1/2 pimiento verde cortado en tiras muy finas, 1 cdta de orégano.",
+                                        consejo: "Corta la verdura casi transparente para que quede asada y crujiente en los 12 minutos que tarda en fundirse el queso.",
+                                        pasos: [
+                                            "Precalienta el horno a 220°C.",
+                                            "Extiende el tomate frito sobre la base y reparte la mezcla de 4 quesos.",
+                                            "Coloca los aros de cebolleta, las tiras de pimiento y espolvorea orégano.",
+                                            "Hornea 12 minutos hasta dorar los bordes."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 21,
+                                    almuerzo: {
+                                        titulo: "Risotto cremoso de setas",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "300g de arroz redondo tipo arborio o bomba, 250g de setas variadas limpias y picadas en trozos pequeños, 1 cebolleta picada muy fina, 750ml de caldo de verduras caliente, 50g de queso parmesano rallado, 20g de mantequilla fría (1 cda), 1/2 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "El secreto de la cremosidad está en añadir la mantequilla fría y el parmesano fuera del fuego y remover con energía durante 1 minuto.",
+                                        pasos: [
+                                            "Sofríe la cebolleta y las setas picadas en una cazuela con aceite EVOO 6 minutos.",
+                                            "Añade el arroz y remueve 2 minutos. Vierte el caldo caliente poco a poco (un cazo cada vez que se absorba) removiendo a menudo.",
+                                            "Cocina 18 minutos en total hasta que el arroz esté tierno y meloso.",
+                                            "Apaga el fuego, añade la mantequilla fría y el parmesano rallado y remueve vigorosamente hasta mantecar."
+                                        ],
+                                        pasosExpres: [
+                                            "Sofríe cebolleta y setas en olla a presión 3 minutos.",
+                                            "Nacara el arroz 1 minuto, vierte todo el caldo hirviendo de una vez y cierra la olla.",
+                                            "Cocina 6 minutos desde que suba la válvula. Abre, añade mantequilla y parmesano y remueve 1 minuto."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Shakshuka (Huevos con tomate y pimientos)",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "4 huevos camperos tamaño L, 400g de tomate natural triturado, 1 pimiento rojo picado en dados pequeños, 1 cebolleta picada fina, 2 dientes de ajo picados finos, 1/2 cdta de comino molido, 1/2 cdta de pimentón dulce, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Tapa la sartén en cuanto casques los huevos; el vapor del tomate cuajará la clara perfectamente dejando la yema líquida para mojar pan.",
+                                        pasos: [
+                                            "Sofríe la cebolleta, los ajos y el pimiento rojo en una sartén amplia con aceite EVOO 8 minutos.",
+                                            "Añade el tomate triturado, el comino, el pimentón y la sal. Cocina a fuego medio 10 minutos hasta que espese.",
+                                            "Haz 4 huecos con una cuchara en la salsa y casca un huevo en cada uno.",
+                                            "Tapa la sartén y cocina a fuego lento 4-5 minutos hasta que las claras estén cuajadas."
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            titulo: "Semana 4: Recetas Especiales de Casa",
+                            dias: [
+                                {
+                                    id: 22,
+                                    almuerzo: {
+                                        titulo: "Bacalao a la vizcaína tradicional",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "4 lomos de bacalao desalado en su punto de sal, 2 cebollas rojas grandes cortadas en juliana fina, 2 cdas colmadas de pulpa de pimiento choricero, 1 tomate maduro rallado, 2 dientes de ajo laminados, 3 cdas de harina para rebozar, 4 cdas de aceite EVOO, 100ml de agua.",
+                                        consejo: "Seca muy bien los lomos de bacalao con papel de cocina antes de pasarlos por harina para que no salpiquen y queden sellados.",
+                                        pasos: [
+                                            "Pocha las cebollas rojas y los ajos en una cazuela con 2 cdas de aceite EVOO a fuego lento 20 minutos hasta que estén muy blandos.",
+                                            "Añade la pulpa de choricero, el tomate rallado y los 100ml de agua. Cocina 8 minutos y tritura todo hasta obtener una salsa fina.",
+                                            "Seca el bacalao, pásalo ligeramente por harina y séllalo en sartén con el resto del aceite 1 minuto por cada lado.",
+                                            "Introduce los lomos en la salsa vizcaína con la piel hacia arriba y cocina 6 minutos a fuego suave."
+                                        ],
+                                        pasosExpres: [
+                                            "Pocha la cebolla en olla rápida 6 minutos, añade choricero y tomate 2 minutos más y tritura.",
+                                            "Marca el bacalao enharinado 2 minutos en sartén e incorpóralo a la salsa hirviendo 3 minutos."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crema ligera de guisantes con menta",
+                                        dot: "baja",
+                                        estacion: "verano",
+                                        ingredientes: "400g de guisantes finos congelados (o frescos), 1 patata mediana pelada en dados pequeños, 1 cebolleta picada fina, 1 cdta de sal, 6 hojas de menta fresca lavadas, 2 cdas de aceite EVOO, 550ml de agua.",
+                                        consejo: "Añade las hojas de menta fresca justo al apagar el fuego antes de triturar; así conservarán todo su frescor y el color verde vivo.",
+                                        pasos: [
+                                            "Pocha la cebolleta en una cazuela con aceite EVOO 5 minutos.",
+                                            "Agrega la patata en dados, los guisantes, la sal y los 550ml de agua.",
+                                            "Cuece tapado 15 minutos hasta que la patata esté tierna.",
+                                            "Apaga el fuego, añade las hojas de menta fresca y tritura 2 minutos."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 23,
+                                    almuerzo: {
+                                        titulo: "Pollo jugoso al ajillo (0% Alcohol)",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "1kg de pollo troceado limpio (muslos y contramuslos sin piel), 10 dientes de ajo enteros con piel (golpeados para abrirlos), 200ml de caldo de pollo concentrado casero, 1 hoja de laurel, 1 cdta de sal, pimienta negra, 4 cdas de aceite EVOO, 2 cdas de perejil fresco picado.",
+                                        consejo: "Chasca ligeramente los dientes de ajo sin pelarlos antes de dorarlos; así sueltan todo su sabor al aceite sin quemarse.",
+                                        pasos: [
+                                            "En una cazuela amplia con el aceite EVOO, dora los ajos enteros a fuego medio 3 minutos y retíralos a un plato.",
+                                            "Sube el fuego y dora los trozos de pollo salpimentados durante 12 minutos girándolos hasta que cojan buen color.",
+                                            "Devuelve los ajos dorados, añade el laurel y vierte los 200ml de caldo de pollo concentrado.",
+                                            "Tapa y cocina a fuego medio-suave 15 minutos hasta reducir la salsa. Espolvorea perejil picado al servir."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Sándwich Club de pavo y huevo a la plancha",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "12 rebanadas de pan de molde integral (3 por persona), 8 lonchas de pechuga de pavo cocida, 4 huevos camperos hechos a la plancha con yema cuajada, 4 lonchas de queso havarti, 1 tomate maduro en rodajas finas, 4 hojas de lechuga secas, 3 cdas de mayonesa ligera, 8 palillos.",
+                                        consejo: "Sujeta el sándwich con dos palillos largos en esquinas opuestas antes de cortarlo en triángulo para que los 3 pisos no se muevan.",
+                                        pasos: [
+                                            "Tuesta las 12 rebanadas de pan de molde.",
+                                            "Cocina los 4 huevos a la plancha con una pizca de sal cuajando bien la yema.",
+                                            "Monta cada sándwich en 3 pisos: pan untado con mayonesa, lechuga, tomate y pavo; segundo pan untado; huevo a la plancha y queso; y tapa con el tercer pan.",
+                                            "Pincha dos palillos y corta en diagonal."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 24,
+                                    almuerzo: {
+                                        titulo: "Lomos de merluza a la romana con ensalada",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "4 lomos de merluza fresca limpios sin espinas, 1 huevo campero batido con una pizca de sal, 4 cdas de harina de trigo, 1/2 cdta de sal, pimienta negra, 100ml de aceite EVOO para freír, 1 bolsa de brotes tiernos de lechuga, 1 tomate en gajos, 1/2 cebolleta en aros.",
+                                        consejo: "Sacude bien el exceso de harina antes de pasar el pescado por el huevo para que el rebozado quede fino y no se desprenda al freír.",
+                                        pasos: [
+                                            "Seca los lomos de merluza, salpimenta y pásalos primero por harina (sacudiendo el sobrante) y luego por el huevo batido.",
+                                            "Fríe en una sartén con el aceite EVOO caliente a fuego medio-alto 3 minutos por cada lado hasta dorar.",
+                                            "Escurre sobre papel absorbente y sirve junto a la ensalada fresca aliñada."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Puré espeso de patata y puerro",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "4 patatas medianas peladas y troceadas (600g), 2 puerros limpios (solo la parte blanca) en rodajas, 50ml de leche templada, 1 cda de mantequilla (15g), 1 cdta de sal, 1 pizca de pimienta blanca, 1 cda de aceite EVOO.",
+                                        consejo: "Escurre muy bien el agua de cocción antes de triturar e incorpora la leche poco a poco para controlar el espesor exacto.",
+                                        pasos: [
+                                            "Cuece las patatas y los puerros en una olla cubiertos de agua con sal durante 20 minutos hasta que estén muy blandos.",
+                                            "Escurre todo el agua de cocción en un colador.",
+                                            "Tritura o pasa por pasapurés añadiendo la mantequilla, la leche templada y la cda de aceite EVOO hasta lograr una textura cremosa."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 25,
+                                    almuerzo: {
+                                        titulo: "Macarrones gratinados con atún y tomate",
+                                        dot: "baja",
+                                        estacion: "invierno",
+                                        ingredientes: "320g de macarrones integrales secos, 3 latas de atún claro en aceite de oliva (muy bien escurridas), 400g de tomate frito casero, 1/2 cebolleta picada muy fina, 50g de aceitunas negras sin hueso cortadas en rodajas finas, 100g de queso emmental rallado para gratinar, 1 cdta rasa de orégano seco, 1 cdta de sal, 1 cda de aceite EVOO.",
+                                        consejo: "Escurre muy bien el aceite de las latas de atún y usa solo el gratinador superior del horno los últimos minutos para que la pasta no quede seca.",
+                                        pasos: [
+                                            "Cuece los macarrones en abundante agua hirviendo con sal durante 9 minutos (al dente) y escurre.",
+                                            "Mientras, sofríe la cebolleta picada fina en una sartén con 1 cda de aceite EVOO durante 4 minutos.",
+                                            "Añade el atún escurrido y desmigado, las aceitunas negras en rodajas finas, el tomate frito y el orégano. Mezcla 2 minutos a fuego suave.",
+                                            "Une la pasta con la salsa, pasa a una fuente de horno, cubre con el queso rallado y gratina a 220°C durante 6-8 minutos hasta dorar."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Crepes salados de champiñones y queso",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "8 crepes saladas finas (caseras o preparadas), 200g de champiñones frescos laminados muy finos, 100g de queso emmental rallado, 1/2 cebolleta picada muy fina, 1/2 cdta de sal, pimienta negra, 2 cdas de aceite EVOO.",
+                                        consejo: "Dobla las crepes en forma de pañuelo cuadrado o triángulo y pásalas 1 minuto por la sartén limpia para que queden crujientes por fuera.",
+                                        pasos: [
+                                            "Saltea los champiñones laminados y la cebolleta en aceite EVOO salpimentados a fuego fuerte 5 minutos hasta que no quede agua.",
+                                            "Extiende una crepe, coloca en el centro 2 cdas de champiñones y un puñado de queso rallado.",
+                                            "Dobla los bordes hacia el centro formando un paquete y pasa 1 minuto por la sartén caliente hasta que funda el queso."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 26,
+                                    almuerzo: {
+                                        titulo: "Ternera guisada con setas (Vianda)",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de ternera para guisar cortada en dados de 3cm, 200g de setas variadas limpias y troceadas, 1 cebolleta picada fina, 2 dientes de ajo picados finos, 1 pimiento rojo picado en tiras, 250ml de caldo de ternera concentrado, 1 cdta de sal, pimienta negra, 3 cdas de aceite EVOO.",
+                                        consejo: "Incorpora las setas en los últimos 15 minutos del guiso para que mantengan su textura carnosa y no se deshagan.",
+                                        pasos: [
+                                            "Sella los dados de ternera salpimentados en cazuela con aceite EVOO a fuego fuerte 4 minutos y reserva.",
+                                            "Pocha los ajos, la cebolleta y el pimiento rojo 8 minutos a fuego medio.",
+                                            "Devuelve la carne, vierte el caldo de ternera concentrado y 100ml de agua. Cocina tapado a fuego lento 30 minutos.",
+                                            "Añade las setas troceadas y cocina 15 minutos más hasta que la carne esté muy tierna."
+                                        ],
+                                        pasosExpres: [
+                                            "Dora la ternera a fuego fuerte en olla a presión 3 minutos.",
+                                            "Añade verduras, setas, sal y 250ml de caldo concentrado.",
+                                            "Cierra la olla y cocina a alta presión 16 minutos."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Ensalada templada de lentejas con verduras",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "400g de lentejas pardinas cocidas de bote (enjuagadas y escurridas), 1 lata de atún en aceite de oliva escurrida, 1/2 pimiento rojo picado en dados de 5mm, 1/2 pimiento verde picado en dados de 5mm, 1/2 cebolleta picada muy fina, 1 tomate firme en dados, 3 cdas de aceite EVOO, 1 cda de vinagre de módena, 1/2 cdta de sal.",
+                                        consejo: "Saltea las lentejas 1 minuto en sartén sin aceite antes de montar la ensalada para quitarles el frío de la nevera y potenciar su sabor.",
+                                        pasos: [
+                                            "Lava y escurre bien las lentejas cocidas y entíbialas 1 minuto en una sartén.",
+                                            "Corta los pimientos, la cebolleta y el tomate en dados muy pequeños.",
+                                            "Mezcla en una ensaladera las lentejas templadas con las verduras frescas y el atún desmigado.",
+                                            "Aliña con sal, vinagre de módena y aceite EVOO."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 27,
+                                    almuerzo: {
+                                        titulo: "Chili suave de ternera con frijoles y arroz",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "400g de carne picada de ternera limpia, 200g de alubias rojas (frijoles) cocidas de bote escurridas, 200g de arroz blanco largo, 1 pimiento rojo picado en dados pequeños, 1 cebolleta picada fina, 400g de tomate natural troceado, 1 cdta de comino molido, 1 cdta de pimentón dulce, 1 cdta de sal, 2 cdas de aceite EVOO.",
+                                        consejo: "Si quieres un toque picante solo para los adultos, añade una pizca de cayena molida directamente en tu plato al servir.",
+                                        pasos: [
+                                            "Cuece el arroz blanco largo en agua con sal durante 13 minutos y escurre.",
+                                            "Mientras, sofríe la cebolleta y el pimiento rojo en sartén amplia con aceite EVOO 6 minutos.",
+                                            "Añade la carne picada salada y dórala 5 minutos desmenuzándola bien.",
+                                            "Incorpora el tomate troceado, el comino y el pimentón reduciendo 12 minutos. Añade los frijoles lavados 3 minutos más y sirve con el arroz."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Pizza casera de atún, cebolleta y mozzarella",
+                                        dot: "alta",
+                                        estacion: "invierno",
+                                        ingredientes: "1 base de pizza fina, 2 latas de atún en aceite de oliva (muy bien escurridas), 100g de tomate frito casero, 150g de queso mozzarella rallado, 1/2 cebolleta cortada en aros muy finos, 1/2 pimiento verde en tiras finas, 1 cdta de orégano seco.",
+                                        consejo: "Desmenuza el atún muy escurrido sobre el queso (y no debajo) para que se tueste ligeramente en el horno y quede sabroso.",
+                                        pasos: [
+                                            "Precalienta el horno a 220°C.",
+                                            "Extiende el tomate frito sobre la base y cubre con la mozzarella rallada.",
+                                            "Reparte el atún escurrido, los aros de cebolleta, el pimiento verde y el orégano.",
+                                            "Hornea 12 minutos hasta dorar los bordes."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 28,
+                                    almuerzo: {
+                                        titulo: "Falafel casero de garbanzos con ensalada",
+                                        dot: "alta",
+                                        estacion: "verano",
+                                        ingredientes: "300g de garbanzos secos hidratados en agua 12h (NO cocidos, crudos remojados), 1 cebolleta picada gruesa, 2 dientes de ajo sin germen, 1 manojo de cilantro o perejil fresco, 1 cdta de comino molido, 1/2 cdta de levadura química, 1 cdta de sal, 3 cdas de harina de garbanzo o trigo, 100ml de aceite EVOO.",
+                                        consejo: "Es imprescindible usar garbanzos crudos remojados (no de bote cocidos), ya que los cocidos tienen demasiada agua y se desharían al freír.",
+                                        pasos: [
+                                            "Escurre los garbanzos remojados y tritúralos en picadora con la cebolleta, ajos, cilantro, comino y sal hasta obtener una pasta granulada.",
+                                            "Añade la levadura y la harina, mezcla bien y deja reposar 20 minutos en la nevera.",
+                                            "Forma bolitas del tamaño de una nuez, aplástalas ligeramente y fríelas en aceite EVOO caliente 3 minutos por lado (o al horno a 200°C 15 min)."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Brochetas de pavo y piña a la plancha",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "400g de pechuga de pavo cortada en dados de 3cm, 4 rodajas de piña natural o en su jugo cortadas en 4 trozos cada una, 1 pimiento verde cortado en cuadrados de 3cm, 1 cebolleta cortada en trozos de 3cm, 2 cdas de salsa de soja, 1/2 cdta de sal, 2 cdas de aceite EVOO, 8 palos de brocheta.",
+                                        consejo: "Si usas palos de brocheta de madera, mójalo bajo el grifo 5 minutos antes de montarlos para que no se quemen en la plancha.",
+                                        pasos: [
+                                            "Macera los dados de pavo con la salsa de soja y 1 cda de aceite EVOO durante 10 minutos.",
+                                            "Ensarta en las brochetas alternando pavo, piña, pimiento verde y cebolleta.",
+                                            "Cocina en una plancha bien caliente con 1 cda de aceite EVOO durante 8-10 minutos girando por todas sus caras."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 29,
+                                    almuerzo: {
+                                        titulo: "Pavo al chilindrón con pimientos",
+                                        dot: "media",
+                                        estacion: "invierno",
+                                        ingredientes: "500g de solomillo o pechuga de pavo cortado en dados de 3cm, 1 pimiento rojo cortado en tiras gruesas, 1 pimiento verde cortado en tiras gruesas, 1 cebolleta cortada en juliana, 2 dientes de ajo laminados, 300g de tomate frito casero, 1 cdta de sal, pimienta negra, 3 cdas de aceite EVOO.",
+                                        consejo: "No cocines demasiado los dados de pavo al sellarlos; con 2 minutos a fuego fuerte basta para que luego terminen de hacerse en el tomate sin secarse.",
+                                        pasos: [
+                                            "Salpimenta los dados de pavo y séllalos a fuego fuerte en cazuela con aceite EVOO 2 minutos. Reserva.",
+                                            "En el mismo aceite, pocha los ajos, la cebolleta y los pimientos en tiras durante 10 minutos.",
+                                            "Vierte el tomate frito, reincorpora el pavo y cocina tapado a fuego suave 12 minutos."
+                                        ],
+                                        pasosExpres: [
+                                            "Sofríe ajos, cebolleta, pimientos y dora el pavo en la olla a presión 4 minutos.",
+                                            "Añade el tomate frito, tapa y cocina 6 minutos a presión."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Wrap de salmón ahumado y queso crema",
+                                        dot: "cero",
+                                        estacion: "verano",
+                                        ingredientes: "4 tortillas de trigo integrales grandes, 150g de salmón ahumado en lonchas finas, 100g de queso crema ligero, 1/2 cebolleta picada muy fina, 1/2 pimiento rojo cortado en tiras finísimas, 40g de hojas de espinacas frescas baby lavadas y secas.",
+                                        consejo: "Corta el rollo ya montado por la mitad en diagonal con un cuchillo de sierra bien afilado para que no se aplaste el relleno.",
+                                        pasos: [
+                                            "Extiende las 4 tortillas sobre la tabla y úntalas por completo con el queso crema.",
+                                            "Coloca una cama de hojas de espinacas frescas y reparte las lonchas de salmón ahumado.",
+                                            "Añade la cebolleta picada y las tiras finas de pimiento rojo.",
+                                            "Enrolla apretando con firmeza y corta cada wrap en dos mitades."
+                                        ]
+                                    }
+                                },
+                                {
+                                    id: 30,
+                                    almuerzo: {
+                                        titulo: "Paella vegetariana de arroz con verduras",
+                                        dot: "baja",
+                                        estacion: "verano",
+                                        ingredientes: "300g de arroz redondo tipo bomba, 100g de judías verdes planas limpias y troceadas en 3cm, 1 zanahoria pelada en dados pequeños, 1/2 pimiento rojo en tiras, 1/2 pimiento verde en tiras, 1 cebolleta picada fina, 750ml de caldo de verduras caliente, 1 pizca de azafrán o cúrcuma, 1 cdta de sal, 4 cdas de aceite EVOO.",
+                                        consejo: "No remuevas el arroz una vez que hayas echado el caldo; así el grano soltará el almidón justo y quedará suelto y entero.",
+                                        pasos: [
+                                            "Sofríe todas las verduras troceadas en una paellera con aceite EVOO a fuego medio durante 10 minutos.",
+                                            "Añade el arroz redondo y remueve 2 minutos para que se impregne bien del aceite.",
+                                            "Vierte los 750ml de caldo hirviendo con el azafrán y la sal. Reparte uniforme.",
+                                            "Cocina 8 minutos a fuego fuerte y 10 minutos a fuego suave sin remover. Deja reposar 5 minutos tapado con un paño limpio."
+                                        ]
+                                    },
+                                    cena: {
+                                        titulo: "Tortilla francesa con trigueros y cebolleta",
+                                        dot: "media",
+                                        estacion: "verano",
+                                        ingredientes: "6 huevos camperos tamaño L (para hacer 2 tortillas de 3 huevos), 1 manojo de espárragos trigueros frescos (sin la parte dura del tallo) cortados en trozos de 2cm, 1/2 cebolleta picada muy fina, 1/2 cdta de sal, pimienta negra, 2 cdas de aceite EVOO.",
+                                        consejo: "Para saber por dónde cortar el tallo duro del espárrago triguero, dóblalo suavemente con los dedos; se partirá por el punto exacto donde empieza la parte tierna.",
+                                        pasos: [
+                                            "Saltea los espárragos troceados y la cebolleta en una sartén con 1 cda de aceite EVOO a fuego medio 7 minutos hasta que estén tiernos.",
+                                            "Bate los huevos con la sal y mezcla con el salteado de verduras.",
+                                            "En la sartén antiadherente con unas gotas de aceite, cuaja dos tortillas jugosas doblándolas por la mitad."
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ];
+                }
+            }
+        }
+    </script>
+</body>
+</html>
